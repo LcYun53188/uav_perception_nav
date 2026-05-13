@@ -2,12 +2,94 @@
 
 本项目约定所有 Python 相关命令都在项目虚拟环境 `.venv` 中执行。
 
-## 1) 初始化环境（只需一次）
+## 1) 虚拟环境配置
+
+### 1.1 初始化虚拟环境（只需一次）
+
+本项目使用 `uv` 作为包管理工具。确保已安装 `uv`：
 
 ```bash
+# 安装 uv（如还没安装）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+创建虚拟环境并安装依赖：
+
+```bash
+# 创建虚拟环境
+uv venv .venv
+
+# 安装本项目的 oakd_perception 包（可编辑模式）
+uv pip install --python .venv/bin/python -e src/oakd_perception
+
+# 安装 OAK-D 深度相机驱动
+uv pip install --python .venv/bin/python depthai
+```
+
+### 1.2 激活/停用虚拟环境
+
+**激活虚拟环境**（进入该环境后使用 Python 和 pip）：
+```bash
+source .venv/bin/activate
+```
+
+激活后，终端提示符会显示 `(.venv)` 前缀。
+
+**停用虚拟环境**：
+```bash
+deactivit
+```
+
+或直接关闭终端。
+
+### 1.3 虚拟环境中安装额外依赖
+
+激活虚拟环境后，可直接使用 `pip` 安装包（无需指定 `--python` 参数）：
+
+```bash
+source .venv/bin/activate
+pip install <package_name>
+```
+
+或者不激活，直接通过 `uv` 指定 Python 路径安装：
+
+```bash
+uv pip install --python .venv/bin/python <package_name>
+```
+
+### 1.4 查看虚拟环境中已安装的包
+
+```bash
+uv pip list --python .venv/bin/python
+```
+
+### 1.5 删除虚拟环境（清理）
+
+如需重新初始化虚拟环境，先删除旧的，再按 1.1 重新创建：
+
+```bash
+rm -rf .venv
 uv venv .venv
 uv pip install --python .venv/bin/python -e src/oakd_perception
 uv pip install --python .venv/bin/python depthai
+```
+
+### 1.6 在 VS Code 中配置解释器
+
+本工作区已配置默认 Python 解释器为 `.venv/bin/python`。
+
+确认可以在 VS Code 的命令面板（Ctrl+Shift+P）中选择 **Python: Select Interpreter** 并确认指向 `./.venv/bin/python`。
+
+### 1.7 使用 with_venv.sh 包裹脚本
+
+无需手动激活，直接使用 `scripts/with_venv.sh` 可在虚拟环境中执行任何命令：
+
+```bash
+# 示例 1：验证 depthai 已安装
+./scripts/with_venv.sh python -c "import depthai; print(depthai.__version__)"
+
+# 示例 2：在虚拟环境中运行任意命令
+./scripts/with_venv.sh pip list
 ```
 
 ## 2) 构建 oakd_perception
@@ -16,7 +98,7 @@ uv pip install --python .venv/bin/python depthai
 ./scripts/with_venv.sh colcon build --packages-select oakd_perception
 ```
 
-## 3) 快速启动脚本
+## 3) 快速启动脚本（深度节点）
 
 项目提供 4 个预配置的启动脚本，位置在 `scripts/` 目录下：
 
@@ -65,7 +147,106 @@ uv pip install --python .venv/bin/python depthai
 
 停止节点：在前台使用 Ctrl+C，或在后台运行时使用 `ps` 查到 PID 再 `kill`。
 
-## 4) 可调节参数
+## 3.5) IMU 节点（6轴 IMU）
+
+OAK-D 相机内置 6 轴 IMU（加速度计 + 陀螺仪），用于获取实时的运动和姿态数据。
+
+### 启动 IMU 节点
+
+```bash
+# 使用虚拟环境启动 IMU 节点
+./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
+```
+
+### IMU 节点发布的话题
+
+| 话题名 | 消息类型 | 发布频率 | 内容 |
+|-------|---------|---------|------|
+| `/oakd/imu` | `sensor_msgs/Imu` | 400 Hz | 加速度、角速度、协方差 |
+
+### 让点云跟随 IMU 转动
+
+如果你想让 RViz 里的点云跟着 OAK-D 的转动，需要让 IMU 节点发布动态 TF，并让点云和 IMU 使用同一个移动坐标系。
+
+当前实现已经支持：
+
+- IMU 节点发布 `map -> oakd_imu_link` 的动态 TF
+- 点云节点使用 `oakd_imu_link` 作为 `frame_id`
+
+RViz 里这样设置：
+
+1. `Fixed Frame` 设为 `map`
+2. 添加 `/oakd/points` 的 `PointCloud2`
+3. 保持 IMU 节点运行
+
+这样当 OAK-D 旋转时，点云会跟着旋转。
+
+注意：这里的姿态是基于陀螺仪积分并用加速度做简单互补滤波，能够跟随转动，但长期 yaw 方向仍可能漂移。如果需要绝对朝向，后续要接磁力计、视觉里程计或外部姿态估计器。
+
+### IMU 数据格式
+
+IMU 消息包含以下数据：
+
+```
+linear_acceleration:    # 线性加速度 (m/s²)
+  x: float
+  y: float
+  z: float
+
+angular_velocity:       # 角速度 (rad/s)
+  x: float
+  y: float
+  z: float
+
+linear_acceleration_covariance: [9次元]
+angular_velocity_covariance: [9次元]
+```
+
+### IMU 节点参数
+
+| 参数名 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `publish_tf` | bool | false | 是否发布 TF 变换 |
+| `frame_id` | str | "oakd_imu" | IMU 坐标系名称 |
+
+### IMU 节点启动示例
+
+```bash
+# 基础启动
+./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
+
+# 在后台以 bag 形式记录数据
+./scripts/with_venv.sh ros2 bag record /oakd/imu -o imu_data.bag
+
+# 查看发布频率
+./scripts/with_venv.sh ros2 topic hz /oakd/imu
+# 应输出约 400Hz
+
+# 实时查看 IMU 数据（5秒）
+timeout 5s ./scripts/with_venv.sh ros2 topic echo /oakd/imu
+```
+
+### 同时运行深度和 IMU 节点
+
+可在不同终端分别启动两个节点：
+
+**终端 1 — 启动深度节点**：
+```bash
+./scripts/run_oakd_balance.sh
+```
+
+**终端 2 — 启动 IMU 节点**：
+```bash
+./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
+```
+
+**终端 3 — 检查话题发布（可选）**：
+```bash
+./scripts/with_venv.sh ros2 topic list
+# 应看到 /oakd/points 和 /oakd/imu
+```
+
+## 4) 可调节参数（深度节点）
 
 oakd_depth_node 支持运行时动态配置，通过 ROS 2 参数系统实现。
 
@@ -234,6 +415,46 @@ chmod +x scripts/run_oakd_*.sh
 3. 检查 RViz 的 Fixed Frame 是否设为 `oakd_link`
 4. 检查点云密度：`timeout 1s ros2 topic hz /oakd/points`（应该显示约 20Hz）
 
+### IMU 节点故障排除
+
+**问题：IMU 节点启动失败，提示"can't find device"**
+
+**排查步骤**：
+1. 确保 OAK-D 相机已连接到 USB 端口：
+   ```bash
+   ./scripts/with_venv.sh python -c "import depthai as dai; print(dai.Device().getCameraSensorNames())"
+   ```
+2. 若无输出或 USB 连接错误，检查硬件连接或 USB 驱动程序
+
+**问题：IMU 数据不连续或空白**
+
+**解决**：
+1. 检查 IMU 话题是否在发布：
+   ```bash
+   ./scripts/with_venv.sh ros2 topic hz /oakd/imu
+   # 应输出约 400 Hz
+   ```
+2. 若显示 0 Hz 或无输出，重启 IMU 节点：
+   ```bash
+   pkill oakd_imu_node
+   ./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
+   ```
+
+**问题：IMU 节点与深度节点冲突**
+
+**原因**：两个节点同时访问同一 OAK-D 设备会导致冲突。
+
+**解决**：使用虚拟环境隔离运行，或者创建联合启动文件（待实现）：
+```bash
+# 确保只有一个节点实例在运行
+pkill oakd_imu_node
+pkill oakd_depth_node
+
+# 然后分别启动
+./scripts/with_venv.sh ros2 run oakd_perception oakd_depth_node
+./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
+```
+
 ### 日志输出示例
 
 正常启动时，节点应输出：
@@ -249,7 +470,8 @@ chmod +x scripts/run_oakd_*.sh
 uav_vision_ws/
 ├── src/oakd_perception/
 │   ├── oakd_perception/
-│   │   └── oakd_depth_node.py           # 点云发布节点主文件
+│   │   ├── oakd_depth_node.py           # 点云发布节点主文件
+│   │   └── oakd_imu_node.py             # IMU 6轴传感器节点
 │   ├── config/
 │   │   ├── outdoor_low_power.yaml       # 户外低功耗配置
 │   │   ├── indoor_high_precision.yaml   # 室内高精度配置

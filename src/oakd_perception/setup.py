@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'oakd_depth_node = oakd_perception.oakd_depth_node:main',
+            'oakd_imu_node = oakd_perception.oakd_imu_node:main',
         ],
     },
 )

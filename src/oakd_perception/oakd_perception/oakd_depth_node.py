@@ -158,7 +158,7 @@ class OakDPointCloudNode(Node):
         
         header = Header()
         header.stamp = self.get_clock().now().to_msg()
-        header.frame_id = "oakd_link"
+        header.frame_id = "oakd_imu_link"
         
         pc_msg = pc2.create_cloud_xyz32(header, points)
         self.pc_pub.publish(pc_msg)
