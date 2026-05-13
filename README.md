@@ -95,7 +95,7 @@ uv pip install --python .venv/bin/python depthai
 ## 2) 构建 oakd_perception
 
 ```bash
-./scripts/with_venv.sh colcon build --packages-select oakd_perception
+./scripts/with_venv.sh colcon build --packages-select oakd_perception oakd_imu_fusion
 ```
 
 ## 3) 快速启动脚本（深度节点）
@@ -147,103 +147,88 @@ uv pip install --python .venv/bin/python depthai
 
 停止节点：在前台使用 Ctrl+C，或在后台运行时使用 `ps` 查到 PID 再 `kill`。
 
-## 3.5) IMU 节点（6轴 IMU）
+## 3.5) IMU 链路（raw / fusion / TF）
 
-OAK-D 相机内置 6 轴 IMU（加速度计 + 陀螺仪），用于获取实时的运动和姿态数据。
+OAK-D 的 IMU 推荐拆成三层：
 
-### 启动 IMU 节点
+- `oakd_perception` 只负责原始 IMU 采集
+- `oakd_imu_fusion` 负责姿态融合
+- `oakd_imu_fusion` 同时提供独立 TF 广播器
+
+### 启动整条链路
 
 ```bash
-# 使用虚拟环境启动 IMU 节点
-./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
+./scripts/with_venv.sh ros2 launch oakd_imu_fusion oakd_imu_fusion.launch.py
 ```
 
-### IMU 节点发布的话题
+### 各层职责
 
-| 话题名 | 消息类型 | 发布频率 | 内容 |
-|-------|---------|---------|------|
-| `/oakd/imu` | `sensor_msgs/Imu` | 400 Hz | 加速度、角速度、协方差 |
+| 组件 | 功能 | 默认话题 |
+|------|------|---------|
+| `oakd_imu_node` | 原始 IMU 采集 | `/oakd/imu/raw` |
+| `oakd_imu_fusion_node` | 姿态融合 | `/oakd/imu` |
+| `oakd_imu_tf_broadcaster` | 广播 `map -> oakd_imu_link` | 订阅 `/oakd/imu` |
 
 ### 让点云跟随 IMU 转动
 
-如果你想让 RViz 里的点云跟着 OAK-D 的转动，需要让 IMU 节点发布动态 TF，并让点云和 IMU 使用同一个移动坐标系。
+1. 启动上面的 IMU 融合链路
+2. 让 RViz 的 `Fixed Frame` 设为 `map`
+3. 添加 `/oakd/points` 的 `PointCloud2`
+4. 保持 raw IMU、fusion 和 TF 广播器运行
 
-当前实现已经支持：
+这样 OAK-D 旋转时，点云会跟着 TF 一起转。
 
-- IMU 节点发布 `map -> oakd_imu_link` 的动态 TF
-- 点云节点使用 `oakd_imu_link` 作为 `frame_id`
-
-RViz 里这样设置：
-
-1. `Fixed Frame` 设为 `map`
-2. 添加 `/oakd/points` 的 `PointCloud2`
-3. 保持 IMU 节点运行
-
-这样当 OAK-D 旋转时，点云会跟着旋转。
-
-注意：这里的姿态是基于陀螺仪积分并用加速度做简单互补滤波，能够跟随转动，但长期 yaw 方向仍可能漂移。如果需要绝对朝向，后续要接磁力计、视觉里程计或外部姿态估计器。
-
-### IMU 数据格式
-
-IMU 消息包含以下数据：
-
-```
-linear_acceleration:    # 线性加速度 (m/s²)
-  x: float
-  y: float
-  z: float
-
-angular_velocity:       # 角速度 (rad/s)
-  x: float
-  y: float
-  z: float
-
-linear_acceleration_covariance: [9次元]
-angular_velocity_covariance: [9次元]
-```
-
-### IMU 节点参数
+### 原始 IMU 节点参数
 
 | 参数名 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `publish_tf` | bool | false | 是否发布 TF 变换 |
-| `frame_id` | str | "oakd_imu" | IMU 坐标系名称 |
+| `imu_frequency` | int | 400 | 采样频率 |
+| `topic_name` | str | "/oakd/imu/raw" | 原始 IMU 输出话题 |
+| `frame_id` | str | "oakd_imu_link" | IMU 坐标系 |
+| `gyro_full_scale` | str | "gyroscope_2000_dps" | 陀螺仪量程 |
+| `accel_full_scale` | str | "accelerometer_4g" | 加速度计量程 |
 
-### IMU 节点启动示例
+### Raw / Fused 数据格式
+
+- 原始话题：`/oakd/imu/raw`
+- 融合话题：`/oakd/imu`
+- 坐标系：`oakd_imu_link`
+
+原始话题只包含加速度和角速度；融合话题会额外填充 orientation，并由独立 TF 广播器生成 `map -> oakd_imu_link`。
+
+### 单独启动示例
 
 ```bash
-# 基础启动
+# 只启动 raw IMU
 ./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
 
-# 在后台以 bag 形式记录数据
-./scripts/with_venv.sh ros2 bag record /oakd/imu -o imu_data.bag
+# 启动融合节点
+./scripts/with_venv.sh ros2 run oakd_imu_fusion oakd_imu_fusion_node \
+  --ros-args -p input_topic:=/oakd/imu/raw -p output_topic:=/oakd/imu
 
-# 查看发布频率
-./scripts/with_venv.sh ros2 topic hz /oakd/imu
-# 应输出约 400Hz
-
-# 实时查看 IMU 数据（5秒）
-timeout 5s ./scripts/with_venv.sh ros2 topic echo /oakd/imu
+# 启动 TF 广播器
+./scripts/with_venv.sh ros2 run oakd_imu_fusion oakd_imu_tf_broadcaster \
+  --ros-args -p input_topic:=/oakd/imu -p parent_frame:=map -p child_frame:=oakd_imu_link
 ```
 
 ### 同时运行深度和 IMU 节点
 
-可在不同终端分别启动两个节点：
+可在不同终端分别启动两个系统：
 
 **终端 1 — 启动深度节点**：
 ```bash
 ./scripts/run_oakd_balance.sh
 ```
 
-**终端 2 — 启动 IMU 节点**：
+**终端 2 — 启动 IMU 融合链路**：
 ```bash
-./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
+./scripts/with_venv.sh ros2 launch oakd_imu_fusion oakd_imu_fusion.launch.py
 ```
 
 **终端 3 — 检查话题发布（可选）**：
 ```bash
 ./scripts/with_venv.sh ros2 topic list
-# 应看到 /oakd/points 和 /oakd/imu
+# 应看到 /oakd/points、/oakd/imu/raw 和 /oakd/imu
 ```
 
 ## 4) 可调节参数（深度节点）

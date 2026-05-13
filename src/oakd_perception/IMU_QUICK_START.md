@@ -15,32 +15,54 @@ cd /home/nuc/Program/uav_vision_ws
 ./scripts/with_venv.sh colcon build --packages-select oakd_perception
 ```
 
-### 2. 运行IMU节点
+### 2. 运行IMU raw 节点
 
 ```bash
-# 方式1: 使用启动脚本
-./scripts/run_oakd_imu.sh
-
-# 方式2: 直接运行
+# 方式1: 直接运行 raw 采集节点
 ./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
 
-# 方式3: 使用配置文件启动
+# 方式2: 使用配置文件启动 raw 节点
 ./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node \
   --ros-args \
-  -r __ns:=/oakd_imu \
   --params-file src/oakd_perception/config/imu_default.yaml
+
+# 方式3: 一次性启动 raw + fusion + TF
+./scripts/with_venv.sh ros2 launch oakd_imu_fusion oakd_imu_fusion.launch.py
 ```
 
-### 3. 查看IMU数据
+### 2.1 运行 IMU 融合和 TF 广播器
+
+如果只想单独启动融合和 TF 广播器，可以这样运行：
+
+```bash
+# 姿态融合
+./scripts/with_venv.sh ros2 run oakd_imu_fusion oakd_imu_fusion_node \
+  --ros-args \
+  -p input_topic:=/oakd/imu/raw \
+  -p output_topic:=/oakd/imu \
+  -p frame_id:=oakd_imu_link
+
+# TF 广播器
+./scripts/with_venv.sh ros2 run oakd_imu_fusion oakd_imu_tf_broadcaster \
+  --ros-args \
+  -p input_topic:=/oakd/imu \
+  -p parent_frame:=map \
+  -p child_frame:=oakd_imu_link
+```
+
+### 3. 查看 IMU 数据
 
 在另一个终端中：
 
 ```bash
-# 查看原始IMU消息
+# 查看原始 IMU 消息
+./scripts/with_venv.sh ros2 topic echo /oakd/imu/raw
+
+# 查看融合后的 IMU 消息
 ./scripts/with_venv.sh ros2 topic echo /oakd/imu
 
 # 查看消息频率
-./scripts/with_venv.sh ros2 topic hz /oakd/imu
+./scripts/with_venv.sh ros2 topic hz /oakd/imu/raw
 
 # 查看消息详情
 ./scripts/with_venv.sh ros2 topic info /oakd/imu
@@ -93,35 +115,11 @@ imu.angular_velocity_covariance       # 陀螺仪协方差 (3x3)
 
 ## 同时运行深度点云 + IMU
 
-### 使用Launch File (推荐)
-
-首先创建 `launch/oakd_full.launch.py`:
-
-```python
-from launch import LaunchDescription
-from launch_ros.actions import Node
-
-def generate_launch_description():
-    return LaunchDescription([
-        Node(
-            package='oakd_perception',
-            executable='oakd_depth_node',
-            name='oakd_depth_node',
-            output='screen',
-        ),
-        Node(
-            package='oakd_perception',
-            executable='oakd_imu_node',
-            name='oakd_imu_node',
-            output='screen',
-            parameters=[{'imu_frequency': 400}],
-        ),
-    ])
-```
+### 使用 Launch File（推荐）
 
 然后运行：
 ```bash
-./scripts/with_venv.sh ros2 launch oakd_perception oakd_full.launch.py
+./scripts/with_venv.sh ros2 launch oakd_imu_fusion oakd_imu_fusion.launch.py
 ```
 
 ### 使用两个终端
@@ -133,7 +131,9 @@ def generate_launch_description():
 
 终端2：
 ```bash
-./scripts/run_oakd_imu.sh
+./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
+./scripts/with_venv.sh ros2 run oakd_imu_fusion oakd_imu_fusion_node
+./scripts/with_venv.sh ros2 run oakd_imu_fusion oakd_imu_tf_broadcaster
 ```
 
 ## 故障排除

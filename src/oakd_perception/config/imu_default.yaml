@@ -1,8 +1,14 @@
-# OAK-D IMU 配置 - 通用模式
+# OAK-D IMU raw 配置 - 通用模式
 oakd_imu_node:
   ros__parameters:
     # IMU采样频率 (Hz 200-400)
     imu_frequency: 400
+    
+    # 原始 IMU 输出话题
+    topic_name: '/oakd/imu/raw'
+    
+    # IMU frame_id
+    frame_id: 'oakd_imu_link'
     
     # 陀螺仪量程
     # 选项: 'gyroscope_250_dps', 'gyroscope_500_dps', 'gyroscope_1000_dps', 'gyroscope_2000_dps'
