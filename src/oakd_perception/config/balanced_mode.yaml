@@ -1,0 +1,12 @@
+oakd_depth_node:
+  ros__parameters:
+    # 平衡模式：适用于大多数场景
+    # 被动立体提供基础深度，主动立体在暗区补充
+    enable_passive_stereo: true   # 启用被动立体
+    enable_active_stereo: true    # 启用主动立体（中等强度）
+    ir_intensity: 800             # IR强度适中
+    
+    # 点云过滤参数（平衡配置）
+    sampling_step: 2              # 采样间隔2（2x2下采样）
+    min_depth: 200                # 最小深度200mm
+    max_depth: 5000               # 最大深度5000mm

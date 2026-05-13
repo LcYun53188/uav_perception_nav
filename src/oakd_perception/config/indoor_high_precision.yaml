@@ -1,0 +1,11 @@
+oakd_depth_node:
+  ros__parameters:
+    # 室内弱光环境推荐配置：混合主动/被动立体
+    enable_passive_stereo: true   # 启用被动立体
+    enable_active_stereo: true    # 启用主动立体（IR投影）
+    ir_intensity: 1000            # IR强度：0-1600
+    
+    # 点云过滤参数（更高精度）
+    sampling_step: 1              # 采样间隔1（无下采样，最密集）
+    min_depth: 100                # 最小深度100mm（支持更近距离）
+    max_depth: 5000               # 最大深度5000mm

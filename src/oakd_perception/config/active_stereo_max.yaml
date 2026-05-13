@@ -1,0 +1,12 @@
+oakd_depth_node:
+  ros__parameters:
+    # 纯主动立体：最高精度和点云密度
+    # 适合完全黑暗或无纹理场景
+    enable_passive_stereo: false  # 禁用被动立体（仅主动）
+    enable_active_stereo: true    # 启用主动立体（最大功率）
+    ir_intensity: 1600            # IR强度最大：最强深度
+    
+    # 点云过滤参数（最大范围和密度）
+    sampling_step: 1              # 采样间隔1（无下采样，最大密度）
+    min_depth: 50                 # 最小深度50mm（支持最近距离）
+    max_depth: 10000              # 最大深度10000mm（支持最远距离）

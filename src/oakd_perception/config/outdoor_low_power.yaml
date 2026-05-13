@@ -1,0 +1,11 @@
+oakd_depth_node:
+  ros__parameters:
+    # 户外强光环境推荐配置：仅被动立体（低功耗）
+    enable_passive_stereo: true   # 启用被动立体
+    enable_active_stereo: false   # 禁用主动立体（避免IR干扰）
+    ir_intensity: 0               # IR投影关闭
+    
+    # 点云过滤参数
+    sampling_step: 2              # 采样间隔2（2x2下采样）
+    min_depth: 200                # 最小深度200mm
+    max_depth: 5000               # 最大深度5000mm
