@@ -1,5 +1,9 @@
 # FOV过滤规则 - 快速参考卡
 
+📌 **回到主文档：** [README.md](README.md) | **详细原理：** [FOV_FILTER_RULES.md](FOV_FILTER_RULES.md)
+
+---
+
 ## 核心公式
 
 ### 固定过滤
@@ -248,3 +252,12 @@ stats = {
 ---
 
 💡 **提示：** 建议开始使用自适应过滤，它对大多数场景都有很好的表现。
+
+---
+
+## 相关文档
+
+- **FOV过滤详细原理** → [FOV_FILTER_RULES.md](FOV_FILTER_RULES.md)
+- **快速参考** → [QUICK_START.md](QUICK_START.md)
+- **深度配置指南** → [DEPTH_MODE_CONFIG.md](DEPTH_MODE_CONFIG.md)
+- **版本更新记录** → [CHANGELOG.md](CHANGELOG.md)

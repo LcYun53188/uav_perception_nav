@@ -1,5 +1,9 @@
 # 修改总结：深度模式独立开关实现
 
+📌 **回到主文档：** [README.md](README.md)
+
+---
+
 **日期**: 2026-05-13  
 **修改文件**: `src/oakd_perception/oakd_perception/oakd_depth_node.py`
 
@@ -210,3 +214,13 @@ Node 启动
 ```bash
 ros2 topic echo /oakd/points --flow-control off | head -20
 ```
+
+---
+
+## 相关文档
+
+- **快速参考** → [QUICK_START.md](QUICK_START.md)
+- **深度配置指南** → [DEPTH_MODE_CONFIG.md](DEPTH_MODE_CONFIG.md)
+- **IMU使用指南** → [IMU_QUICK_START.md](IMU_QUICK_START.md)
+- **FOV过滤参考** → [FOV_FILTER_QUICK_REF.md](FOV_FILTER_QUICK_REF.md)
+- **FOV过滤原理** → [FOV_FILTER_RULES.md](FOV_FILTER_RULES.md)

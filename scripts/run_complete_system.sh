@@ -108,6 +108,7 @@ case $MODE in
             echo '  /imu (100Hz fused) + TF(map→imu_link)'
             echo ''
             ros2 launch imu_fusion imu_fusion.launch.py \
+                launch_imu_node:=false \
                 raw_topic_0:=/oakd/imu/raw \
                 fused_topic_0:=/imu \
                 frame_id_0:=imu_link \
@@ -167,12 +168,17 @@ case $MODE in
         
         # IMU融合
         echo "📍 启动IMU融合节点..."
-        ros2 launch imu_fusion imu_fusion.launch.py &
+        ros2 launch imu_fusion imu_fusion.launch.py \
+            launch_imu_node:=false \
+            raw_topic_0:=/oakd/imu/raw \
+            fused_topic_0:=/imu \
+            frame_id_0:=imu_link \
+            parent_frame:=map &
         sleep 2
         
         # RViz
         echo "📍 启动RViz..."
-        rviz2 -d \$(ros2 pkg prefix imu_fusion)/share/imu_fusion/rviz/imu_fusion.rviz 2>/dev/null || rviz2
+        rviz2 -d $(ros2 pkg prefix imu_fusion)/share/imu_fusion/rviz/imu_fusion.rviz 2>/dev/null || rviz2
         ;;
         
     *)

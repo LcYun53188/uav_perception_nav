@@ -1,132 +1,136 @@
 # uav_vision_ws（统一使用 .venv）
 
-本项目约定所有 Python 相关命令都在项目虚拟环境 `.venv` 中执行。
+本仓库提供针对 OAK‑D 相机的深度点云与 IMU 采集、融合与可视化工具集，全部以项目虚拟环境 `.venv` 运行为约定。本文档已重构为更清晰的结构：快速上手 → 架构概览 → 安装/构建 → 运行/调试 → 配置/参数 → 可视化 → 测试/回放 → 坐标系/TF → 故障排查 → 项目结构。
 
-## 1) 虚拟环境配置
+---
 
-### 1.1 初始化虚拟环境（只需一次）
+## 快速开始 (Quick Start)
 
-本项目使用 `uv` 作为包管理工具。确保已安装 `uv`：
+按下面三步快速跑通：
+
+1. 初始化并激活虚拟环境：
 
 ```bash
-# 安装 uv（如还没安装）
 curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-创建虚拟环境并安装依赖：
-
-```bash
-# 创建虚拟环境
-uv venv .venv
-
-# 安装本项目的 oakd_perception 包（可编辑模式）
-uv pip install --python .venv/bin/python -e src/oakd_perception
-
-# 安装 OAK-D 深度相机驱动
-uv pip install --python .venv/bin/python depthai
-```
-
-### 1.2 激活/停用虚拟环境
-
-**激活虚拟环境**（进入该环境后使用 Python 和 pip）：
-```bash
-source .venv/bin/activate
-```
-
-激活后，终端提示符会显示 `(.venv)` 前缀。
-
-**停用虚拟环境**：
-```bash
-deactivit
-```
-
-或直接关闭终端。
-
-### 1.3 虚拟环境中安装额外依赖
-
-激活虚拟环境后，可直接使用 `pip` 安装包（无需指定 `--python` 参数）：
-
-```bash
-source .venv/bin/activate
-pip install <package_name>
-```
-
-或者不激活，直接通过 `uv` 指定 Python 路径安装：
-
-```bash
-uv pip install --python .venv/bin/python <package_name>
-```
-
-### 1.4 查看虚拟环境中已安装的包
-
-```bash
-uv pip list --python .venv/bin/python
-```
-
-### 1.5 删除虚拟环境（清理）
-
-如需重新初始化虚拟环境，先删除旧的，再按 1.1 重新创建：
-
-```bash
-rm -rf .venv
 uv venv .venv
 uv pip install --python .venv/bin/python -e src/oakd_perception
 uv pip install --python .venv/bin/python depthai
+source .venv/bin/activate
 ```
 
-### 1.6 在 VS Code 中配置解释器
-
-本工作区已配置默认 Python 解释器为 `.venv/bin/python`。
-
-确认可以在 VS Code 的命令面板（Ctrl+Shift+P）中选择 **Python: Select Interpreter** 并确认指向 `./.venv/bin/python`。
-
-### 1.7 使用 with_venv.sh 包裹脚本
-
-无需手动激活，直接使用 `scripts/with_venv.sh` 可在虚拟环境中执行任何命令：
-
-```bash
-# 示例 1：验证 depthai 已安装
-./scripts/with_venv.sh python -c "import depthai; print(depthai.__version__)"
-
-# 示例 2：在虚拟环境中运行任意命令
-./scripts/with_venv.sh pip list
-```
-
-## 2) 构建 oakd_perception
+2. 构建并启动完整系统：
 
 ```bash
 ./scripts/with_venv.sh colcon build --packages-select oakd_perception imu_fusion
+./scripts/run_complete_system.sh
 ```
 
-## 3) 快速启动脚本（深度节点）
+3. 打开 RViz：设置 `Fixed Frame` 为 `oakd_link`（或 `map` 若启用 IMU 联动），添加 `/oakd/points` 的 `PointCloud2` 显示。
 
-项目提供 4 个预配置的启动脚本，位置在 `scripts/` 目录下：
+---
 
-| 脚本 | 被动立体 | 主动立体 | 应用场景 |
-|------|--------|--------|--------|
-| `run_oakd_outdoor.sh` | ✓ | ✗ | 户外强光（低功耗） |
-| `run_oakd_indoor.sh` | ✓ | ✓ | 室内弱光（最精度） |
-| `run_oakd_balance.sh` | ✓ | ✓ | 通用平衡模式 |
-| `run_oakd_active_max.sh` | ✗ | ✓ | 黑暗环境（最高密度） |
+## 本文档结构（目录）
 
-### 使用快速启动脚本
+- 概览
+- 快速开始
+- 架构说明
+- 安装与构建
+- 运行与启动
+  - 快速启动脚本
+  - 手动运行示例
+  - 统一节点（IMU + 深度）
+  - IMU 融合链路
+- 配置与参数
+- 可视化（RViz）
+- 测试与验证（在线/离线）
+- 坐标系与 TF 说明
+- 故障排查
+- 项目文件结构
+- 附录：配置文件位置
+
+---
+
+## 1. 概览
+
+本仓库提供：
+
+- `oakd_perception`：负责 OAK‑D 设备的深度点云与原始 IMU 采集（包含可配置的立体深度参数）；
+- `imu_fusion`：接收原始 IMU，输出融合后的姿态并广播 TF；
+- 多个启动脚本与配置预设，便于在室内/户外/黑暗场景间切换。
+
+推荐使用“一体化/统一节点”方案（在单进程中同时管理深度与 IMU），避免设备冲突（X_LINK_DEVICE_ALREADY_IN_USE）。详见后文“统一节点”节与 [UNIFIED_NODE_ARCHITECTURE.md](UNIFIED_NODE_ARCHITECTURE.md)。
+
+---
+
+## 2. 架构说明
+
+简要架构（逻辑视图）：
+
+```
+单一 OAK-D 设备
+      ↓
+  DAI Pipeline (单进程)
+   ├─ IMU 采样 → /oakd/imu/raw  (400Hz)
+   └─ 深度处理 → /oakd/points    (~20Hz)
+
+上游：/oakd/imu/raw -> imu_fusion -> /imu (融合) -> imu_tf_broadcaster -> TF(map -> imu_link)
+```
+
+要点：
+- 将 IMU 与深度放在同一进程（统一节点）避免 USB/设备冲突；
+- `imu_fusion` 负责从原始 IMU 出来姿态估计并广播 `map -> imu_link`；
+- RViz 的 `Fixed Frame` 决定点云是否随 IMU 姿态旋转（`map` 时会跟随 TF）。
+
+---
+
+## 3. 安装与构建
+
+本节简述关键步骤。详细信息见 [**docs/INSTALLATION.md**](./docs/INSTALLATION.md)。
+
+### 3.1 快速步骤
 
 ```bash
-./scripts/run_oakd_balance.sh          # 平衡模式（推荐）
-./scripts/run_oakd_outdoor.sh          # 户外模式
-./scripts/run_oakd_indoor.sh           # 室内高精度模式
-./scripts/run_oakd_active_max.sh       # 主动立体最大模式
+# 1. 安装 uv 并创建虚拟环境
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv venv .venv
+
+# 2. 安装依赖
+uv pip install --python .venv/bin/python -e src/oakd_perception depthai
+
+# 3. 构建
+./scripts/with_venv.sh colcon build --packages-select oakd_perception imu_fusion
 ```
 
-每个脚本会自动：
-1. 激活虚拟环境
-2. 加载 ROS 2 环境
-3. 读取对应的 YAML 配置文件
-4. 启动点云发布节点
+### 3.2 完整配置指南
 
-### 运行节点（手动模式）
+所有细节（环境激活、依赖管理、VS Code 配置、故障排查等）请查阅 [**docs/INSTALLATION.md**](./docs/INSTALLATION.md)。
 
-你也可以手动启动节点，并传递自定义参数：
+---
+
+## 4. 运行与启动
+
+本节集中说明启动脚本、手动运行示例，以及统一节点与 IMU 链路的使用方式。
+
+### 4.1 快速启动脚本（推荐）
+
+项目提供四个场景预设脚本（位于 `scripts/`）：
+
+| 脚本 | 被动立体 | 主动立体 | 场景 |
+|------|---------|---------|------|
+| `run_oakd_outdoor.sh` | ✓ | ✗ | 户外强光（低功耗） |
+| `run_oakd_indoor.sh`  | ✓ | ✓ | 室内弱光（高精度） |
+| `run_oakd_balance.sh` | ✓ | ✓ | 平衡模式（通用） |
+| `run_oakd_active_max.sh` | ✗ | ✓ | 黑暗环境（最高密度） |
+
+使用示例：
+
+```bash
+./scripts/run_oakd_balance.sh
+```
+
+每个脚本会：激活 `.venv` → 加载 ROS2 环境 → 读取 YAML 配置 → 启动点云发布节点。
+
+### 4.2 手动运行示例（可传参）
 
 ```bash
 ./scripts/with_venv.sh ./.venv/bin/oakd_depth_node --ros-args \
@@ -138,423 +142,190 @@ uv pip install --python .venv/bin/python depthai
   -p max_depth:=5000
 ```
 
-运行后验证节点是否已发布点云话题：
+运行后列出话题以确认：
 
 ```bash
-./scripts/with_venv.sh ros2 topic list
-# 应看到 /oakd/points 在列表中
+./scripts/with_venv.sh ros2 topic list | grep /oakd/points
 ```
 
-停止节点：在前台使用 Ctrl+C，或在后台运行时使用 `ps` 查到 PID 再 `kill`。
+### 4.3 统一节点（推荐：IMU + 深度同进程）
 
-## 3.4) OAK-D 统一节点（推荐方案）⭐
+**问题**：旧架构中分别运行 IMU 节点和深度节点会引起设备被占用错误（X_LINK_DEVICE_ALREADY_IN_USE）。
 
-**问题**: 旧的独立 IMU + 深度节点会导致设备冲突错误：
-```
-Error: X_LINK_DEVICE_ALREADY_IN_USE
-```
+**解决**：使用 `oakd_unified_node` 在单一进程中同时处理 IMU 与深度。
 
-**解决**: 使用 `oakd_unified_node` - 在单一进程中同时处理 IMU 和深度数据：
+启动（交互脚本或手动）：
 
-### 启动统一节点
-
-最简单方式：
 ```bash
 chmod +x scripts/run_complete_system.sh
-./scripts/run_complete_system.sh
-# 选择 1 (完整系统) 或 2 (仅设备)
-```
-
-或手动启动：
-```bash
+./scripts/run_complete_system.sh    # 选择完整系统或仅设备
+# 或
 ./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py
 ```
 
-### 一体化架构
-
-```
-单一 OAK-D 设备 → DAI Pipeline (单进程)
-                  ├─ IMU采样器 (400Hz) → /oakd/imu/raw
-                  └─ 深度处理 (20Hz)  → /oakd/points
-```
-
-### 统一节点优势
-
-| 功能 | 旧架构 | 新架构 |
-|------|--------|--------|
-| 设备冲突 | ❌ | ✅ 无冲突 |
-| IMU频率 | 400Hz | 400Hz |
-| 点云频率 | 20Hz | 20Hz |
-| 资源占用 | 相同 | 相同 |
-| 使用难度 | 困难 | 简单 |
-
-### 统一节点启动参数
+统一节点常用参数示例：
 
 ```bash
-# 启用主动立体
 ./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py \
-    enable_passive_stereo:=true \
-    enable_active_stereo:=true \
-    ir_intensity:=1000 \
-    pointcloud_frequency:=30
-
-# 仅IMU（不需要点云）
-ros2 launch oakd_perception oakd_unified.launch.py pointcloud_frequency:=0
+  enable_passive_stereo:=true enable_active_stereo:=true ir_intensity:=1000 pointcloud_frequency:=30
 ```
 
-### 发布的主题
+统一节点发布的主题（常见）：
 
-| 主题 | 类型 | 频率 | 说明 |
-|------|------|------|------|
-| `/oakd/imu/raw` | `Imu` | 400Hz | 原始 IMU 数据 |
-| `/oakd/points` | `PointCloud2` | 20Hz | 深度点云 |
+- `/oakd/imu/raw` — 原始 IMU（Imu）约 400Hz
+- `/oakd/points` — 深度点云（PointCloud2）约 20Hz
 
-📖 详细见 [UNIFIED_NODE_ARCHITECTURE.md](UNIFIED_NODE_ARCHITECTURE.md)
+### 4.4 IMU 融合链路（上层）
 
-## 3.5) IMU 链路（raw / fusion / TF）
+建议架构：
 
-OAK-D 的 IMU 推荐拆成三层：
+- 统一节点发布 `/oakd/imu/raw`（原始 IMU）；
+- `imu_fusion` 订阅原始 IMU，输出融合后 `/imu`（含 orientation），并由 `imu_tf_broadcaster` 广播 `map -> imu_link`。
 
-- `oakd_perception` 通过统一节点采集原始 IMU (不再需要独立 `oakd_imu_node`)
-- `imu_fusion` 负责姿态融合
-- `imu_fusion` 同时提供独立 TF 广播器
+手动启动链路示例：
 
-### 启动整条链路
-
-**推荐做法** (使用完整启动脚本)：
 ```bash
-./scripts/run_complete_system.sh
-```
-
-**手动启动**：
-```bash
-# 终端 1: 统一节点 (IMU + 深度)
+# 统一节点（IMU+深度）
 ./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py
 
-# 终端 2: IMU融合 + TF广播
-./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py
-
-# 终端 3: RViz可视化
-./scripts/with_venv.sh rviz2
-```
-
-### 各层职责
-
-| 组件 | 功能 | 默认话题 | 来源 |
-|------|------|---------|------|
-| `oakd_unified_node` | IMU + 深度采集 | `/oakd/imu/raw` | 硬件 |
-| `imu_fusion_node` | 姿态融合 | `/imu` | 融合 |
-| `imu_tf_broadcaster` | 广播 `map -> imu_link` | TF | 融合后IMU |
-
-### 让点云跟随 IMU 转动
-
-1. 启动上面的完整链路
-2. 让 RViz 的 `Fixed Frame` 设为 `map`
-3. 添加 `/oakd/points` 的 `PointCloud2`
-4. 保持所有节点运行
-
-这样 OAK-D 旋转时，点云会跟着 TF 一起转。
-
-### 原始 IMU 节点参数 (统一节点)
-
-| 参数名 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `imu_frequency` | int | 400 | 采样频率 (Hz) |
-| `imu_topic_name` | str | "/oakd/imu/raw" | 原始 IMU 输出话题 |
-| `imu_frame_id` | str | "oakd_imu_link" | IMU 坐标系 |
-| `gyro_full_scale` | str | "gyroscope_2000_dps" | 陀螺仪量程 |
-| `accel_full_scale` | str | "accelerometer_4g" | 加速度计量程 |
-
-
-### Raw / Fused 数据格式
-
-- 原始话题：`/imu/raw`
-- 融合话题：`/imu`
-- 坐标系：`imu_link`
-
-原始话题只包含加速度和角速度；融合话题会额外填充 orientation，并由独立 TF 广播器生成 `map -> imu_link`。若需要兼容旧配置，可在启动参数中显式指定 `/oakd/imu/raw` 和 `oakd_imu_link`。
-
-### 单独启动示例
-
-```bash
-# 只启动 raw IMU
-./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
-
-# 启动融合节点
-./scripts/with_venv.sh ros2 run imu_fusion imu_fusion_node \
-  --ros-args -p input_topic:=/imu/raw -p output_topic:=/imu
-
-# 启动 TF 广播器
-./scripts/with_venv.sh ros2 run imu_fusion imu_tf_broadcaster \
-  --ros-args -p input_topic:=/imu -p parent_frame:=map -p child_frame:=imu_link
-```
-
-### 同时运行深度和 IMU 节点
-
-可在不同终端分别启动两个系统：
-
-**终端 1 — 启动深度节点**：
-```bash
-./scripts/run_oakd_balance.sh
-```
-
-**终端 2 — 启动 IMU 融合链路**：
-```bash
+# IMU 融合与 TF 广播
 ./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py
 ```
 
-**终端 3 — 检查话题发布（可选）**：
-```bash
-./scripts/with_venv.sh ros2 topic list
-# 应看到 /oakd/points、/imu/raw 和 /imu
-```
+---
 
-## 4) 可调节参数（深度节点）
+## 5. 配置与参数
 
-oakd_depth_node 支持运行时动态配置，通过 ROS 2 参数系统实现。
-
-### 立体深度模式参数
-
-| 参数名 | 类型 | 默认值 | 范围 | 说明 |
-|-------|------|-------|------|------|
-| `enable_passive_stereo` | bool | true | - | 启用/禁用被动立体深度（基于纹理匹配） |
-| `enable_active_stereo` | bool | false | - | 启用/禁用主动立体深度（红外投影仪） |
-| `ir_intensity` | int | 1600 | 0-1600 | 红外照度强度（仅在主动立体启用时生效） |
-
-### 点云过滤参数
+### 5.1 立体深度模式参数
 
 | 参数名 | 类型 | 默认值 | 说明 |
-|-------|------|-------|------|
-| `sampling_step` | int | 2 | 采样间隔（1=无下采样，2=2x2下采样） |
-| `min_depth` | int | 200 | 最小深度过滤阈值（毫米） |
-| `max_depth` | int | 5000 | 最大深度过滤阈值（毫米） |
+|--------|------|--------|------|
+| `enable_passive_stereo` | bool | true | 被动立体（纹理匹配） |
+| `enable_active_stereo`  | bool | false | 主动红外投影 |
+| `ir_intensity`          | int  | 1600  | 红外强度（0-1600） |
 
-### 参数使用示例
+### 5.2 点云过滤与下采样
 
-```bash
-# 高密度点云（室内高精度）
-./scripts/with_venv.sh ./.venv/bin/oakd_depth_node --ros-args \
-  -p sampling_step:=1 \
-  -p min_depth:=100 \
-  -p max_depth:=5000
+| 参数名 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `sampling_step` | int | 2 | 下采样步长（1=无） |
+| `min_depth`     | int | 200 | 最小深度（mm） |
+| `max_depth`     | int | 5000 | 最大深度（mm） |
 
-# 低功耗户外模式
-./scripts/with_venv.sh ./.venv/bin/oakd_depth_node --ros-args \
-  -p enable_passive_stereo:=true \
-  -p enable_active_stereo:=false \
-  -p sampling_step:=2 \
-  -p min_depth:=500 \
-  -p max_depth:=8000
+### 5.3 预设配置文件
 
-# 黑暗环境最大范围
-./scripts/with_venv.sh ./.venv/bin/oakd_depth_node --ros-args \
-  -p enable_passive_stereo:=false \
-  -p enable_active_stereo:=true \
-  -p ir_intensity:=1600 \
-  -p sampling_step:=1 \
-  -p min_depth:=50 \
-  -p max_depth:=10000
-```
+位置：`src/oakd_perception/config/`
 
-### 预设配置文件
+- `outdoor_low_power.yaml` — 户外低功耗
+- `indoor_high_precision.yaml` — 室内高精度
+- `balanced_mode.yaml` — 平衡模式
+- `active_stereo_max.yaml` — 黑暗场景最高密度
 
-项目提供 4 个预配置的 YAML 文件（位置：`src/oakd_perception/config/`），包含针对不同场景的参数组合：
+---
 
-| 配置文件 | 描述 |
-|---------|------|
-| `outdoor_low_power.yaml` | 户外低功耗：被动立体 ON，主动立体 OFF |
-| `indoor_high_precision.yaml` | 室内高精度：混合立体，最密集点云 |
-| `balanced_mode.yaml` | 平衡模式：混合立体，适用大多数场景 |
-| `active_stereo_max.yaml` | 主动立体最大：黑暗场景，最高密度 |
+## 6. 可视化（RViz）
 
-## 5) 手动进入 venv（可选）
+### 6.1 启动 RViz 并添加点云
 
-```bash
-source .venv/bin/activate
-```
-
-说明：
-- `scripts/with_venv.sh` 会先激活 `.venv`，再加载 ROS 环境，最后执行你传入的命令。
-- VS Code 工作区已配置默认解释器为 `.venv/bin/python`，新开终端会优先使用 `.venv/bin`。
-
-## 6) 在 RViz2 中查看点云
-
-### 启动节点与 RViz
-
-打开两个终端，分别运行：
-
-**终端 1 — 启动点云发布节点**:
-```bash
-./scripts/with_venv.sh ./install/oakd_perception/bin/oakd_depth_node
-```
-
-**终端 2 — 启动 RViz2 可视化工具**:
 ```bash
 ./scripts/with_venv.sh rviz2
 ```
 
-### 在 RViz 中添加点云显示
+设置建议：
 
-1. **设置 Fixed Frame**  
-  - 只看深度点云时，可以先设为点云所属坐标系，例如 `oakd_link`。
-  - 如果要让点云随 IMU 姿态一起转动，先启动 IMU 融合链路，再把 `Fixed Frame` 设为 `map`。
+- `Fixed Frame`：`oakd_link`（仅点云）或 `map`（若启用 IMU 联动）；
+- 添加 `PointCloud2`，选择 `/oakd/points`；
+- 调整 `Style`、`Size`（0.01–0.05m）、`Color Transformer`（Intensity/RGB/FlatColor）。
 
-2. **添加 PointCloud2 显示**  
-   - 点击左下角 `Add` 按钮。
-   - 在弹出菜单中选择 `By Topic` 选项卡。
-   - 在话题列表中查找 `/oakd/points`，点击选中。
-   - 确认数据类型为 `PointCloud2`，点击 `OK`（或双击话题名）。
-   - 该显示会被添加到左侧 `Displays` 列表。
+### 6.2 若要点云随 IMU 姿态旋转
 
-3. **调整可视化参数**（可选但推荐）  
-   在左侧选中添加的 PointCloud2 显示项，然后在下方调整：
-   - **Style**: 选择 `Points` 或 `Spheres`（Points 更轻量）
-   - **Size (m)**: 试 0.01–0.05 之间（根据点云密度和观看距离调整）
-   - **Color Transformer**: 根据消息内容选择
-     - 若仅 XYZ：选 `FlatColor` 并手动选定颜色
-     - 若含强度：选 `Intensity`
-     - 若含 RGB：选 `RGB8`
-   - **Decay Time**: 可设为 0.1–1.0s，使连续帧略微拖尾效果
+- 确保 `imu_fusion` 正常发布 `/imu` 并广播 `map -> imu_link`；
+- 将 RViz `Fixed Frame` 设为 `map`；
+- 添加 `TF` 显示以验证 frame 关系。
 
-### 在 RViz 中查看“IMU 下”的点云
+---
 
-如果你希望点云按照 IMU 姿态旋转，推荐使用下面这组配置：
+## 7. 测试与验证
 
-1. **先启动 IMU 链路**
-  ```bash
-  ./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py
-  ```
+### 7.1 在线系统检查
 
-2. **再启动点云节点**
-  ```bash
-  ./scripts/with_venv.sh ./install/oakd_perception/bin/oakd_depth_node
-  ```
-
-3. **在 RViz 中设置显示**
-  - `Fixed Frame` 设为 `map`
-  - 添加 `TF` 显示，便于确认 `map -> imu_link` 是否正常广播
-  - 添加 `/oakd/points` 的 `PointCloud2` 显示
-
-4. **如果点云没有跟着转动，检查这三项**
-  - `ros2 topic echo /imu` 是否能看到融合后的 IMU 数据
-  - `ros2 topic list | grep /oakd/points` 是否存在点云话题
-  - `ros2 run tf2_tools view_frames` 是否能看到 `map -> imu_link` 的 TF 链路
-
-这套配置适合观察“点云在 IMU 姿态变化下的空间关系”。如果你只想看原始点云，不需要 IMU 联动，则直接使用上面的普通点云配置即可。
-
-### 显示效果验证
-
-当节点正常发布、RViz 正确配置后，应在 3D 视图区看到点云点群。
-
-若不显示点云，排查步骤：
-- 在新终端验证 `/oakd/points` 话题存在：
-  ```bash
-  ./scripts/with_venv.sh ros2 topic list | grep /oakd/points
-  ```
-- 查看一条消息内容（应输出 PointCloud2 结构）：
-  ```bash
-  timeout 5s ./scripts/with_venv.sh ros2 topic echo /oakd/points
-  ```
-- 如果话题缺失，检查节点是否在运行：
-  ```bash
-  ps -ef | grep oakd_depth_node | grep -v grep
-  ```
-- 若无进程，重新启动节点：
-  ```bash
-  ./scripts/with_venv.sh ./install/oakd_perception/bin/oakd_depth_node
-  ```
-
-## 7) 故障排除
-
-### 常见问题
-
-**问题：节点启动失败，提示"找不到模块"**
-```
-ModuleNotFoundError: No module named 'depthai'
-```
-**解决**：确保虚拟环境已正确初始化：
 ```bash
-./scripts/with_venv.sh python -c "import depthai; print(depthai.__version__)"
+./scripts/run_complete_system.sh
+./scripts/with_venv.sh ros2 topic list | grep -E "/oakd/points|/oakd/imu|/imu"
+./scripts/with_venv.sh ros2 topic hz /oakd/points
+./scripts/with_venv.sh ros2 topic hz /imu
 ```
-若输出版本号，则 depthai 已正确安装。
 
-**问题：运行快速启动脚本提示"权限被拒绝"**
-```
-Permission denied
-```
-**解决**：给脚本添加执行权限：
+### 7.2 录制与离线回放（ros2 bag）
+
 ```bash
-chmod +x scripts/run_oakd_*.sh
+./scripts/with_venv.sh ros2 bag record -o test_run /oakd/points /imu
+# 停止录制后回放
+./scripts/with_venv.sh ros2 bag play test_run_0.db3
 ```
 
-**问题：点云参数不生效**
+### 7.3 常用调试命令
+
 ```bash
-# 正确用法
-./scripts/with_venv.sh ./.venv/bin/oakd_depth_node --ros-args -p key:=value
-
-# 错误用法（不会被识别）
-./scripts/with_venv.sh ./.venv/bin/oakd_depth_node -p key:=value
+# 列出 oakd 相关进程
+ps aux | grep oakd | grep -v grep
+# 强制停止
+pkill -9 -f "oakd"
+# 检查 depthai
+./scripts/with_venv.sh python -c "import depthai, sys; print('depthai', depthai.__version__)"
+# 导出 TF 拓扑
+./scripts/with_venv.sh ros2 run tf2_tools view_frames
 ```
-**注意**：必须在 `--ros-args` 之后才能使用 `-p` 参数。
 
-**问题：RViz 中看不到点云**
+---
 
-排查顺序：
-1. 检查节点是否在运行：`ps aux | grep oakd_depth_node`
-2. 检查话题是否存在：`ros2 topic list | grep /oakd/points`
-3. 检查 RViz 的 Fixed Frame：普通点云可用 `oakd_link`，IMU 联动点云建议设为 `map`
-4. 检查点云密度：`timeout 1s ros2 topic hz /oakd/points`（应该显示约 20Hz）
+## 8. 坐标系与 TF 说明
 
-### IMU 节点故障排除
+常用 frame：
 
-**问题：IMU 节点启动失败，提示"can't find device"**
+- `oakd_link`：深度点云发布时的相机机体坐标系；
+- `oakd_imu_link`：IMU 原始数据所用 frame；
+- `map`：全局世界坐标系（由上层定位或 `imu_fusion` 提供）。
 
-**排查步骤**：
-1. 确保 OAK-D 相机已连接到 USB 端口：
-   ```bash
-   ./scripts/with_venv.sh python -c "import depthai as dai; print(dai.Device().getCameraSensorNames())"
-   ```
-2. 若无输出或 USB 连接错误，检查硬件连接或 USB 驱动程序
+注意：ROS 中位置单位为米（m），但节点参数中 `min_depth`/`max_depth` 以毫米（mm）表示（换算 1m = 1000mm）。
 
-**问题：IMU 数据不连续或空白**
+检查 TF：
 
-**解决**：
-1. 检查 IMU 话题是否在发布：
-   ```bash
-  ./scripts/with_venv.sh ros2 topic hz /imu
-   # 应输出约 400 Hz
-   ```
-2. 若显示 0 Hz 或无输出，重启 IMU 节点：
-   ```bash
-   pkill oakd_imu_node
-   ./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
-   ```
-
-**问题：IMU 节点与深度节点冲突**
-
-**原因**：两个节点同时访问同一 OAK-D 设备会导致冲突。
-
-**解决**：使用虚拟环境隔离运行，或者创建联合启动文件（待实现）：
 ```bash
-# 确保只有一个节点实例在运行
-pkill oakd_imu_node
-pkill oakd_depth_node
-
-# 然后分别启动
-./scripts/with_venv.sh ros2 run oakd_perception oakd_depth_node
-./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
+./scripts/with_venv.sh ros2 run tf2_tools view_frames
+./scripts/with_venv.sh ros2 run tf2_ros tf2_echo map oakd_imu_link
 ```
 
-### 日志输出示例
+在代码中查询变换（示例）：
 
-正常启动时，节点应输出：
-```
-[INFO] [timestamp] [oakd_pointcloud_node]: Passive Stereo: ON
-[INFO] [timestamp] [oakd_pointcloud_node]: Active Stereo:  OFF
-[INFO] [timestamp] [oakd_pointcloud_node]: OAK-D 点云驱动节点已启动 [深度模式: 被动立体]，正在发布点云...
+```python
+from tf2_ros import Buffer, TransformListener
+import rclpy
+
+node = rclpy.create_node('tf_query')
+ tf_buffer = Buffer()
+ tf_listener = TransformListener(tf_buffer, node)
+ try:
+     trans = tf_buffer.lookup_transform('oakd_link', 'oakd_imu_link', rclpy.time.Time())
+ except Exception as e:
+     node.get_logger().warn(f"TF lookup failed: {e}")
 ```
 
-## 8) 项目文件结构
+静态安装偏差：使用 `static_transform_publisher` 或在 launch 中设置静态变换进行校正。
+
+---
+
+## 9. 故障排查
+
+- 常见问题：ModuleNotFoundError: depthai → 确认 `.venv` 中安装 depthai（见第 3 节）。
+- 设备冲突：优先使用统一节点或确保仅有一个进程访问设备。可用 `pkill` 停止冗余进程。
+- RViz 不显示点云：检查话题 `/oakd/points`、Fixed Frame 与 TF 链路。
+
+常用排查命令见第 7 节。
+
+---
+
+## 10. 项目文件结构
 
 ```
 uav_vision_ws/
@@ -562,21 +333,33 @@ uav_vision_ws/
 │   ├── oakd_perception/
 │   │   ├── oakd_depth_node.py           # 点云发布节点主文件
 │   │   └── oakd_imu_node.py             # IMU 6轴传感器节点
-│   ├── config/
-│   │   ├── outdoor_low_power.yaml       # 户外低功耗配置
-│   │   ├── indoor_high_precision.yaml   # 室内高精度配置
-│   │   ├── balanced_mode.yaml           # 平衡模式配置
-│   │   └── active_stereo_max.yaml       # 主动立体最大配置
+│   ├── config/                          # 预设配置文件
+│   │   ├── outdoor_low_power.yaml
+│   │   ├── indoor_high_precision.yaml
+│   │   ├── balanced_mode.yaml
+│   │   └── active_stereo_max.yaml
 │   ├── setup.py
 │   └── package.xml
-├── scripts/
-│   ├── with_venv.sh                     # 虚拟环境包裹器
-│   ├── run_oakd_outdoor.sh              # 户外启动脚本
-│   ├── run_oakd_indoor.sh               # 室内启动脚本
-│   ├── run_oakd_balance.sh              # 平衡模式启动脚本
-│   └── run_oakd_active_max.sh           # 主动立体启动脚本
-├── install/                             # colcon 编译输出目录
-├── build/                               # colcon 编译中间目录
-├── .venv/                               # Python 虚拟环境
-└── README.md                            # 本文件
+├── scripts/                             # 快速启动脚本与工具
+│   ├── with_venv.sh
+│   ├── run_oakd_outdoor.sh
+│   ├── run_oakd_indoor.sh
+│   ├── run_oakd_balance.sh
+│   └── run_oakd_active_max.sh
+└── README.md
 ```
+
+---
+
+## 附录：配置文件位置
+
+`src/oakd_perception/config/` 包含预设 YAML，可直接修改或拷贝为自定义配置并在脚本/launch 中引用。
+
+---
+
+如果你希望，我可以：
+- 1) 将 README 的验证步骤抽成 `scripts/check_system.sh`；
+- 2) 添加简短的 `CONTRIBUTING.md`；
+- 3) 把 README 里的命令示例校验为可执行脚本并在 CI 中运行（需你允许我创建脚本）。
+
+请选择下一步要我执行的项（或告诉我其他重排偏好）。

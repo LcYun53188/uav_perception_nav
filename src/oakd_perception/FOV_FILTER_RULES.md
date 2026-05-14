@@ -1,5 +1,9 @@
 # FOV边界点云过滤规则详细说明
 
+📌 **回到主文档：** [README.md](README.md) | **快速参考：** [FOV_FILTER_QUICK_REF.md](FOV_FILTER_QUICK_REF.md)
+
+---
+
 ## 目录
 1. [基础过滤规则](#基础过滤规则)
 2. [自适应过滤规则](#自适应过滤规则)
@@ -699,3 +703,12 @@ filtered = filter.filter_fov_boundary(points)
 ---
 
 **最后建议：** 推荐优先使用 **自适应过滤**，因为它自动处理大多数场景，无需手工调参。仅在对延迟要求极严格的实时系统中才切换到固定过滤。
+
+---
+
+## 相关文档
+
+- **FOV过滤快速参考** → [FOV_FILTER_QUICK_REF.md](FOV_FILTER_QUICK_REF.md)
+- **快速参考** → [QUICK_START.md](QUICK_START.md)
+- **深度配置指南** → [DEPTH_MODE_CONFIG.md](DEPTH_MODE_CONFIG.md)
+- **版本更新记录** → [CHANGELOG.md](CHANGELOG.md)

@@ -1,10 +1,9 @@
 oakd_unified:
   ros__parameters:
     # 纯主动立体：最高精度和点云密度
-    # 适合完全黑暗或无纹理场景
     enable_passive_stereo: false  # 禁用被动立体（仅主动）
     enable_active_stereo: true    # 启用主动立体（最大功率）
-    ir_intensity: 1600            # IR强度最大：最强深度
+    ir_intensity: 1600            # IR强度最大
     
     # 点云过滤参数（最大范围和密度）
     sampling_step: 1              # 采样间隔1（无下采样，最大密度）
@@ -15,6 +14,6 @@ oakd_unified:
     imu_frequency: 400
     imu_topic_name: '/oakd/imu/raw'
     imu_frame_id: 'oakd_imu_link'           # 硬件/重力中心
-    pointcloud_frequency: 20
+    pointcloud_frequency: 10                # 降低频率
     pointcloud_topic: '/oakd/points'
     pointcloud_frame_id: 'oakd_camera_optical_frame' # 镜头成像中心

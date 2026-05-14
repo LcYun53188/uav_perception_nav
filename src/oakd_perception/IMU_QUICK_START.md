@@ -1,5 +1,9 @@
 # OAK-D IMU 使用指南
 
+📌 **回到主文档：** [README.md](README.md)
+
+---
+
 ## 概述
 
 本文档说明如何从OAK-D深度摄像头获取IMU(惯性测量单元)数据。OAK-D配备6轴IMU传感器，提供：
@@ -207,3 +211,12 @@ def imu_callback(msg):
 - [OAK-D官方文档](https://docs.luxonis.com/)
 - [DepthAI Python API](https://docs.luxonis.com/projects/api/en/latest/references/python/)
 - [ROS2 sensor_msgs](https://github.com/ros2/common_interfaces/tree/master/sensor_msgs)
+
+---
+
+## 相关文档
+
+- **快速参考** → [QUICK_START.md](QUICK_START.md)
+- **深度配置指南** → [DEPTH_MODE_CONFIG.md](DEPTH_MODE_CONFIG.md)
+- **FOV过滤参考** → [FOV_FILTER_QUICK_REF.md](FOV_FILTER_QUICK_REF.md)
+- **版本更新记录** → [CHANGELOG.md](CHANGELOG.md)

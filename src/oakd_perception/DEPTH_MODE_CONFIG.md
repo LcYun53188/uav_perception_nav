@@ -1,5 +1,9 @@
 # OAK-D 深度模式配置指南
 
+📌 **回到主文档：** [README.md](README.md)
+
+---
+
 ## 概述
 
 节点支持三种深度估计模式：
@@ -198,3 +202,13 @@ ros2 param set /oakd_depth_node enable_active_stereo false
 | **弱光环境** | `passive:false, active:true, ir:1600` (纯主动最强) |
 | **通用高精度** | `passive:true, active:true, ir:800` (平衡注入) |
 | **低延迟实时** | `passive:false, active:true, ir:600` (快速处理) |
+
+---
+
+## 相关文档
+
+- **快速参考** → [QUICK_START.md](QUICK_START.md)
+- **IMU使用指南** → [IMU_QUICK_START.md](IMU_QUICK_START.md)
+- **FOV过滤参考** → [FOV_FILTER_QUICK_REF.md](FOV_FILTER_QUICK_REF.md)
+- **FOV过滤原理** → [FOV_FILTER_RULES.md](FOV_FILTER_RULES.md)
+- **版本更新记录** → [CHANGELOG.md](CHANGELOG.md)

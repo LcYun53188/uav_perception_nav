@@ -14,6 +14,6 @@ oakd_unified:
     imu_frequency: 400
     imu_topic_name: '/oakd/imu/raw'
     imu_frame_id: 'oakd_imu_link'           # 硬件/重力中心
-    pointcloud_frequency: 20
+    pointcloud_frequency: 10                # 降低频率减少带宽压力
     pointcloud_topic: '/oakd/points'
     pointcloud_frame_id: 'oakd_camera_optical_frame' # 镜头成像中心

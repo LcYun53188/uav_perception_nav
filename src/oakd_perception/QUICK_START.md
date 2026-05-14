@@ -1,5 +1,9 @@
 # 快速参考
 
+📌 **回到主文档：** [README.md](README.md)
+
+---
+
 ## 参数说明
 
 | 参数 | 类型 | 范围 | 默认值 | 说明 |
@@ -108,3 +112,13 @@ ros2 param set /oakd_depth_node ir_intensity 1200
 - `/oakd/points` - PointCloud2 格式的三维点云（发布频率 20Hz）
 - 分辨率: 约160x100 点（已优化降采样）
 - 坐标系: `oakd_link`（相机坐标系）
+
+---
+
+## 相关文档
+
+- **详细配置指南** → [DEPTH_MODE_CONFIG.md](DEPTH_MODE_CONFIG.md)
+- **IMU使用指南** → [IMU_QUICK_START.md](IMU_QUICK_START.md)
+- **FOV过滤参考** → [FOV_FILTER_QUICK_REF.md](FOV_FILTER_QUICK_REF.md)
+- **FOV过滤原理** → [FOV_FILTER_RULES.md](FOV_FILTER_RULES.md)
+- **版本更新记录** → [CHANGELOG.md](CHANGELOG.md)

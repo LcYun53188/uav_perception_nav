@@ -9,8 +9,8 @@ def launch_setup(context, *args, **kwargs):
     
     # 基础参数字典
     base_params = {
-        'imu_frequency': LaunchConfiguration('imu_frequency').perform(context),
-        'pointcloud_frequency': LaunchConfiguration('pointcloud_frequency').perform(context),
+        'imu_frequency': int(LaunchConfiguration('imu_frequency').perform(context)),
+        'pointcloud_frequency': int(LaunchConfiguration('pointcloud_frequency').perform(context)),
         'enable_passive_stereo': LaunchConfiguration('enable_passive_stereo').perform(context) == 'true',
         'enable_active_stereo': LaunchConfiguration('enable_active_stereo').perform(context) == 'true',
         'ir_intensity': int(LaunchConfiguration('ir_intensity').perform(context)),
