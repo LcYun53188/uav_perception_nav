@@ -10,6 +10,9 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/launch', [
+            'launch/oakd_unified.launch.py',
+        ]),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -26,6 +29,7 @@ setup(
         'console_scripts': [
             'oakd_depth_node = oakd_perception.oakd_depth_node:main',
             'oakd_imu_node = oakd_perception.oakd_imu_node:main',
+            'oakd_unified_node = oakd_perception.oakd_unified_node:main',
         ],
     },
 )

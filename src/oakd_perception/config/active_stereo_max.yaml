@@ -1,4 +1,4 @@
-oakd_depth_node:
+oakd_unified:
   ros__parameters:
     # 纯主动立体：最高精度和点云密度
     # 适合完全黑暗或无纹理场景
@@ -10,3 +10,11 @@ oakd_depth_node:
     sampling_step: 1              # 采样间隔1（无下采样，最大密度）
     min_depth: 50                 # 最小深度50mm（支持最近距离）
     max_depth: 10000              # 最大深度10000mm（支持最远距离）
+
+    # IMU参数
+    imu_frequency: 400
+    imu_topic_name: '/oakd/imu/raw'
+    imu_frame_id: 'oakd_imu_link'           # 硬件/重力中心
+    pointcloud_frequency: 20
+    pointcloud_topic: '/oakd/points'
+    pointcloud_frame_id: 'oakd_camera_optical_frame' # 镜头成像中心

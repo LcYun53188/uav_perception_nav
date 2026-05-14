@@ -95,7 +95,7 @@ uv pip install --python .venv/bin/python depthai
 ## 2) 构建 oakd_perception
 
 ```bash
-./scripts/with_venv.sh colcon build --packages-select oakd_perception oakd_imu_fusion
+./scripts/with_venv.sh colcon build --packages-select oakd_perception imu_fusion
 ```
 
 ## 3) 快速启动脚本（深度节点）
@@ -147,54 +147,132 @@ uv pip install --python .venv/bin/python depthai
 
 停止节点：在前台使用 Ctrl+C，或在后台运行时使用 `ps` 查到 PID 再 `kill`。
 
+## 3.4) OAK-D 统一节点（推荐方案）⭐
+
+**问题**: 旧的独立 IMU + 深度节点会导致设备冲突错误：
+```
+Error: X_LINK_DEVICE_ALREADY_IN_USE
+```
+
+**解决**: 使用 `oakd_unified_node` - 在单一进程中同时处理 IMU 和深度数据：
+
+### 启动统一节点
+
+最简单方式：
+```bash
+chmod +x scripts/run_complete_system.sh
+./scripts/run_complete_system.sh
+# 选择 1 (完整系统) 或 2 (仅设备)
+```
+
+或手动启动：
+```bash
+./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py
+```
+
+### 一体化架构
+
+```
+单一 OAK-D 设备 → DAI Pipeline (单进程)
+                  ├─ IMU采样器 (400Hz) → /oakd/imu/raw
+                  └─ 深度处理 (20Hz)  → /oakd/points
+```
+
+### 统一节点优势
+
+| 功能 | 旧架构 | 新架构 |
+|------|--------|--------|
+| 设备冲突 | ❌ | ✅ 无冲突 |
+| IMU频率 | 400Hz | 400Hz |
+| 点云频率 | 20Hz | 20Hz |
+| 资源占用 | 相同 | 相同 |
+| 使用难度 | 困难 | 简单 |
+
+### 统一节点启动参数
+
+```bash
+# 启用主动立体
+./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py \
+    enable_passive_stereo:=true \
+    enable_active_stereo:=true \
+    ir_intensity:=1000 \
+    pointcloud_frequency:=30
+
+# 仅IMU（不需要点云）
+ros2 launch oakd_perception oakd_unified.launch.py pointcloud_frequency:=0
+```
+
+### 发布的主题
+
+| 主题 | 类型 | 频率 | 说明 |
+|------|------|------|------|
+| `/oakd/imu/raw` | `Imu` | 400Hz | 原始 IMU 数据 |
+| `/oakd/points` | `PointCloud2` | 20Hz | 深度点云 |
+
+📖 详细见 [UNIFIED_NODE_ARCHITECTURE.md](UNIFIED_NODE_ARCHITECTURE.md)
+
 ## 3.5) IMU 链路（raw / fusion / TF）
 
 OAK-D 的 IMU 推荐拆成三层：
 
-- `oakd_perception` 只负责原始 IMU 采集
-- `oakd_imu_fusion` 负责姿态融合
-- `oakd_imu_fusion` 同时提供独立 TF 广播器
+- `oakd_perception` 通过统一节点采集原始 IMU (不再需要独立 `oakd_imu_node`)
+- `imu_fusion` 负责姿态融合
+- `imu_fusion` 同时提供独立 TF 广播器
 
 ### 启动整条链路
 
+**推荐做法** (使用完整启动脚本)：
 ```bash
-./scripts/with_venv.sh ros2 launch oakd_imu_fusion oakd_imu_fusion.launch.py
+./scripts/run_complete_system.sh
+```
+
+**手动启动**：
+```bash
+# 终端 1: 统一节点 (IMU + 深度)
+./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py
+
+# 终端 2: IMU融合 + TF广播
+./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py
+
+# 终端 3: RViz可视化
+./scripts/with_venv.sh rviz2
 ```
 
 ### 各层职责
 
-| 组件 | 功能 | 默认话题 |
-|------|------|---------|
-| `oakd_imu_node` | 原始 IMU 采集 | `/oakd/imu/raw` |
-| `oakd_imu_fusion_node` | 姿态融合 | `/oakd/imu` |
-| `oakd_imu_tf_broadcaster` | 广播 `map -> oakd_imu_link` | 订阅 `/oakd/imu` |
+| 组件 | 功能 | 默认话题 | 来源 |
+|------|------|---------|------|
+| `oakd_unified_node` | IMU + 深度采集 | `/oakd/imu/raw` | 硬件 |
+| `imu_fusion_node` | 姿态融合 | `/imu` | 融合 |
+| `imu_tf_broadcaster` | 广播 `map -> imu_link` | TF | 融合后IMU |
 
 ### 让点云跟随 IMU 转动
 
-1. 启动上面的 IMU 融合链路
+1. 启动上面的完整链路
 2. 让 RViz 的 `Fixed Frame` 设为 `map`
 3. 添加 `/oakd/points` 的 `PointCloud2`
-4. 保持 raw IMU、fusion 和 TF 广播器运行
+4. 保持所有节点运行
 
 这样 OAK-D 旋转时，点云会跟着 TF 一起转。
 
-### 原始 IMU 节点参数
+### 原始 IMU 节点参数 (统一节点)
 
 | 参数名 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `imu_frequency` | int | 400 | 采样频率 |
-| `topic_name` | str | "/oakd/imu/raw" | 原始 IMU 输出话题 |
-| `frame_id` | str | "oakd_imu_link" | IMU 坐标系 |
+| `imu_frequency` | int | 400 | 采样频率 (Hz) |
+| `imu_topic_name` | str | "/oakd/imu/raw" | 原始 IMU 输出话题 |
+| `imu_frame_id` | str | "oakd_imu_link" | IMU 坐标系 |
 | `gyro_full_scale` | str | "gyroscope_2000_dps" | 陀螺仪量程 |
 | `accel_full_scale` | str | "accelerometer_4g" | 加速度计量程 |
 
+
 ### Raw / Fused 数据格式
 
-- 原始话题：`/oakd/imu/raw`
-- 融合话题：`/oakd/imu`
-- 坐标系：`oakd_imu_link`
+- 原始话题：`/imu/raw`
+- 融合话题：`/imu`
+- 坐标系：`imu_link`
 
-原始话题只包含加速度和角速度；融合话题会额外填充 orientation，并由独立 TF 广播器生成 `map -> oakd_imu_link`。
+原始话题只包含加速度和角速度；融合话题会额外填充 orientation，并由独立 TF 广播器生成 `map -> imu_link`。若需要兼容旧配置，可在启动参数中显式指定 `/oakd/imu/raw` 和 `oakd_imu_link`。
 
 ### 单独启动示例
 
@@ -203,12 +281,12 @@ OAK-D 的 IMU 推荐拆成三层：
 ./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
 
 # 启动融合节点
-./scripts/with_venv.sh ros2 run oakd_imu_fusion oakd_imu_fusion_node \
-  --ros-args -p input_topic:=/oakd/imu/raw -p output_topic:=/oakd/imu
+./scripts/with_venv.sh ros2 run imu_fusion imu_fusion_node \
+  --ros-args -p input_topic:=/imu/raw -p output_topic:=/imu
 
 # 启动 TF 广播器
-./scripts/with_venv.sh ros2 run oakd_imu_fusion oakd_imu_tf_broadcaster \
-  --ros-args -p input_topic:=/oakd/imu -p parent_frame:=map -p child_frame:=oakd_imu_link
+./scripts/with_venv.sh ros2 run imu_fusion imu_tf_broadcaster \
+  --ros-args -p input_topic:=/imu -p parent_frame:=map -p child_frame:=imu_link
 ```
 
 ### 同时运行深度和 IMU 节点
@@ -222,13 +300,13 @@ OAK-D 的 IMU 推荐拆成三层：
 
 **终端 2 — 启动 IMU 融合链路**：
 ```bash
-./scripts/with_venv.sh ros2 launch oakd_imu_fusion oakd_imu_fusion.launch.py
+./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py
 ```
 
 **终端 3 — 检查话题发布（可选）**：
 ```bash
 ./scripts/with_venv.sh ros2 topic list
-# 应看到 /oakd/points、/oakd/imu/raw 和 /oakd/imu
+# 应看到 /oakd/points、/imu/raw 和 /imu
 ```
 
 ## 4) 可调节参数（深度节点）
@@ -318,7 +396,8 @@ source .venv/bin/activate
 ### 在 RViz 中添加点云显示
 
 1. **设置 Fixed Frame**  
-   在 RViz 顶部菜单栏左侧或左侧面板 `Global Options` 中，找到 `Fixed Frame` 并将其设置为 `oakd_link`。
+  - 只看深度点云时，可以先设为点云所属坐标系，例如 `oakd_link`。
+  - 如果要让点云随 IMU 姿态一起转动，先启动 IMU 融合链路，再把 `Fixed Frame` 设为 `map`。
 
 2. **添加 PointCloud2 显示**  
    - 点击左下角 `Add` 按钮。
@@ -336,6 +415,32 @@ source .venv/bin/activate
      - 若含强度：选 `Intensity`
      - 若含 RGB：选 `RGB8`
    - **Decay Time**: 可设为 0.1–1.0s，使连续帧略微拖尾效果
+
+### 在 RViz 中查看“IMU 下”的点云
+
+如果你希望点云按照 IMU 姿态旋转，推荐使用下面这组配置：
+
+1. **先启动 IMU 链路**
+  ```bash
+  ./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py
+  ```
+
+2. **再启动点云节点**
+  ```bash
+  ./scripts/with_venv.sh ./install/oakd_perception/bin/oakd_depth_node
+  ```
+
+3. **在 RViz 中设置显示**
+  - `Fixed Frame` 设为 `map`
+  - 添加 `TF` 显示，便于确认 `map -> imu_link` 是否正常广播
+  - 添加 `/oakd/points` 的 `PointCloud2` 显示
+
+4. **如果点云没有跟着转动，检查这三项**
+  - `ros2 topic echo /imu` 是否能看到融合后的 IMU 数据
+  - `ros2 topic list | grep /oakd/points` 是否存在点云话题
+  - `ros2 run tf2_tools view_frames` 是否能看到 `map -> imu_link` 的 TF 链路
+
+这套配置适合观察“点云在 IMU 姿态变化下的空间关系”。如果你只想看原始点云，不需要 IMU 联动，则直接使用上面的普通点云配置即可。
 
 ### 显示效果验证
 
@@ -397,7 +502,7 @@ chmod +x scripts/run_oakd_*.sh
 排查顺序：
 1. 检查节点是否在运行：`ps aux | grep oakd_depth_node`
 2. 检查话题是否存在：`ros2 topic list | grep /oakd/points`
-3. 检查 RViz 的 Fixed Frame 是否设为 `oakd_link`
+3. 检查 RViz 的 Fixed Frame：普通点云可用 `oakd_link`，IMU 联动点云建议设为 `map`
 4. 检查点云密度：`timeout 1s ros2 topic hz /oakd/points`（应该显示约 20Hz）
 
 ### IMU 节点故障排除
@@ -416,7 +521,7 @@ chmod +x scripts/run_oakd_*.sh
 **解决**：
 1. 检查 IMU 话题是否在发布：
    ```bash
-   ./scripts/with_venv.sh ros2 topic hz /oakd/imu
+  ./scripts/with_venv.sh ros2 topic hz /imu
    # 应输出约 400 Hz
    ```
 2. 若显示 0 Hz 或无输出，重启 IMU 节点：

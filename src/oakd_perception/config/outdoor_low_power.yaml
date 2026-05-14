@@ -1,4 +1,4 @@
-oakd_depth_node:
+oakd_unified:
   ros__parameters:
     # 户外强光环境推荐配置：仅被动立体（低功耗）
     enable_passive_stereo: true   # 启用被动立体
@@ -9,3 +9,11 @@ oakd_depth_node:
     sampling_step: 2              # 采样间隔2（2x2下采样）
     min_depth: 200                # 最小深度200mm
     max_depth: 5000               # 最大深度5000mm
+
+    # IMU参数
+    imu_frequency: 400
+    imu_topic_name: '/oakd/imu/raw'
+    imu_frame_id: 'oakd_imu_link'           # 硬件/重力中心
+    pointcloud_frequency: 20
+    pointcloud_topic: '/oakd/points'
+    pointcloud_frame_id: 'oakd_camera_optical_frame' # 镜头成像中心

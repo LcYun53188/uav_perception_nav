@@ -27,8 +27,15 @@ class OakDImuTfBroadcaster(Node):
         )
 
     def imu_callback(self, msg):
-        if msg.orientation_covariance and msg.orientation_covariance[0] < 0.0:
-            return
+        # Check if orientation is valid (orientation_covariance[0] >= 0 means valid)
+        # Be careful with numpy arrays - can't use them directly in boolean context
+        try:
+            if hasattr(msg, 'orientation_covariance') and len(msg.orientation_covariance) > 0:
+                if msg.orientation_covariance[0] < 0.0:
+                    return
+        except (TypeError, IndexError, ValueError):
+            # If we can't check covariance, still proceed (assume valid)
+            pass
 
         child_frame = msg.header.frame_id if self.use_message_frame_id and msg.header.frame_id else self.child_frame
 
