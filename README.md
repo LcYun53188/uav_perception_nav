@@ -29,6 +29,18 @@ source .venv/bin/activate
 
 ---
 
+## 面向 PX4 的扩展方向
+
+当前仓库已经完成感知与姿态融合底座，下一阶段建议把重点放到 PX4 无人机导航与避障：
+
+- 先用 `nav` 方案跑通 PX4 Offboard 和局部避障闭环。
+- 再把点云升级为 3D 体素、ESDF 或局部 3D 地图。
+- 最终让 `3D` 导航成为主方案，`nav` 作为安全降级层。
+
+详细对比见 [docs/PX4_NAVIGATION_STRATEGY.md](./docs/PX4_NAVIGATION_STRATEGY.md)。
+
+---
+
 ## 本文档结构（目录）
 
 - 概览

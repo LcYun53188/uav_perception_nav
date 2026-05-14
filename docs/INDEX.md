@@ -10,6 +10,7 @@
 |------|------|--------|--------|
 | [INSTALLATION.md](./INSTALLATION.md) | 虚拟环境、依赖、构建 | 开发者、新用户 | 15 min |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 系统架构、数据流、节点设计 | 架构师、集成者 | 20 min |
+| [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md) | PX4 导航与避障路线，对比 nav 与 3D 方案 | 导航集成者、算法开发者 | 15 min |
 | [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) | 常用命令、参数、问题排查 | 所有用户 | 10 min |
 | [../README.md](../README.md) | 项目主文档、快速开始 | 所有用户 | 10 min |
 
@@ -27,6 +28,7 @@
 ### 深入学习
 
 - 需要了解架构设计？ → [ARCHITECTURE.md](./ARCHITECTURE.md)
+- 需要规划 PX4 导航路线？ → [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md)
 - 想调整参数与配置？ → [../README.md](../README.md#5-配置与参数) 或 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常用启动参数)
 - 想确认启动入口？ → [../README.md](../README.md#4-运行与启动) 或 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#启动命令)
 - 遇到问题？ → [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常见问题与解决) 或 [../README.md](../README.md#10-故障排查)
@@ -46,6 +48,7 @@ docs/
 ├── INDEX.md                      # 本文件
 ├── INSTALLATION.md               # 环境安装指南
 ├── ARCHITECTURE.md               # 系统架构设计
+├── PX4_NAVIGATION_STRATEGY.md    # PX4 导航与避障路线对比
 ├── QUICK_REFERENCE.md            # 快速命令参考
 └── archive/                      # 历史文档
     ├── README.md                 # 归档说明
