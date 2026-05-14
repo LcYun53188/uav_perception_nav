@@ -2,7 +2,7 @@
 
 ## 概览
 
-IMU融合系统已重构以支持多IMU配置，同时保持单IMU的完全兼容性。所有命名已删除"oakd"前缀，实现更通用的架构。
+IMU融合系统已重构以支持多IMU配置，同时保持单IMU的完全兼容性。当前默认 frame 仍使用 `oakd_imu_link`，以便与 OAK-D 统一节点的 TF 链保持一致；如需通用命名，可在启动参数中自定义。
 
 ## 文件结构变化
 
@@ -37,14 +37,17 @@ oakd_imu_tf_broadcaster  # 已弃用
 # 新推荐方式
 ros2 launch imu_fusion imu_fusion.launch.py
 
+# 推荐脚本入口（与 OAK-D 统一节点配套）
+./scripts/run_imu_fusion_tf.sh
+
 # 或使用旧启动文件（向后兼容）
 ros2 launch imu_fusion oakd_imu_fusion.launch.py
 ```
 
 **默认主题和框架：**
-- 原始IMU: `/imu/raw`（新名称，原为 `/oakd/imu/raw`可自定义）
-- 融合IMU: `/imu`（新名称，原为 `/oakd/imu`可自定义）
-- 框架ID: `oakd_imu_link`（向后兼容，可自定义为 `imu_link`
+- 原始IMU: `/imu/raw`（新名称，原为 `/oakd/imu/raw` 可自定义）
+- 融合IMU: `/imu`（新名称，原为 `/oakd/imu` 可自定义）
+- 框架ID: `oakd_imu_link`（默认，推荐；也可自定义为 `imu_link` 或其他名称）
 
 ### 场景2：多IMU支持（新功能）
 
@@ -155,7 +158,7 @@ ros2 launch imu_fusion imu_fusion.launch.py \
 具体参数：
 - `raw_topic_0`: 原始IMU主题（默认: `/imu/raw`）
 - `fused_topic_0`: 融合后IMU主题（默认: `/imu`）
-- `frame_id_0`: IMU框架ID（默认: `imu_link`）
+- `frame_id_0`: IMU框架ID（默认: `oakd_imu_link`）
 - `parent_frame`: TF父框架（默认: `map`）
 - `imu_frequency`: IMU采样频率Hz（默认: `400`）
 - `num_imus`: IMU数量（默认: `1`，预留用）
@@ -204,7 +207,7 @@ Node(
 
 ```
 map
-└── imu_link (orientation only)
+└── oakd_imu_link (orientation only)
     └── (optional: IMU module attached to robot frame)
 ```
 
@@ -233,7 +236,7 @@ imu_fusion_node (complementary filtering)
     ↓
 imu_tf_broadcaster (TF publishing)
     ↓
-map → imu_link (TF transform)
+map → oakd_imu_link (TF transform)
 ```
 
 ### 多IMU管道
@@ -342,7 +345,7 @@ sub = self.create_subscription(Imu, '/imu', callback)
 tf_buffer.lookup_transform('map', 'oakd_imu_link', rclpy.time.Time())
 
 # 新推荐
-tf_buffer.lookup_transform('map', 'imu_link', rclpy.time.Time())
+tf_buffer.lookup_transform('map', 'oakd_imu_link', rclpy.time.Time())
 ```
 
 ### 步骤3：更新启动文件
@@ -357,6 +360,19 @@ tf_buffer.lookup_transform('map', 'imu_link', rclpy.time.Time())
 <launch>
   <include file="$(find imu_fusion)/launch/imu_fusion.launch.py"/>
 </launch>
+```
+
+### 步骤4：切换到脚本入口
+
+```bash
+# OAK-D 统一节点
+./scripts/run_oakd_unified.sh
+
+# IMU 融合 + TF 广播
+./scripts/run_imu_fusion_tf.sh
+
+# 一键完整系统
+./scripts/run_complete_system.sh
 ```
 
 ## 总结

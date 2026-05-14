@@ -22,11 +22,13 @@
 1. 阅读 [../README.md](../README.md#快速开始-quick-start) — **快速开始** 节
 2. 按 [INSTALLATION.md](./INSTALLATION.md) — 配置虚拟环境
 3. 查阅 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) — 启动节点
+4. 直接使用标准入口脚本： [scripts/run_complete_system.sh](../scripts/run_complete_system.sh)、[scripts/run_oakd_unified.sh](../scripts/run_oakd_unified.sh)、[scripts/run_imu_fusion_tf.sh](../scripts/run_imu_fusion_tf.sh)
 
 ### 深入学习
 
 - 需要了解架构设计？ → [ARCHITECTURE.md](./ARCHITECTURE.md)
 - 想调整参数与配置？ → [../README.md](../README.md#5-配置与参数) 或 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常用启动参数)
+- 想确认启动入口？ → [../README.md](../README.md#4-运行与启动) 或 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#启动命令)
 - 遇到问题？ → [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常见问题与解决) 或 [../README.md](../README.md#10-故障排查)
 
 ### 查看历史与参考
@@ -96,6 +98,12 @@ docs/
 - 系统架构简图
 - 性能指标
 
+### 标准启动脚本
+
+- [scripts/run_complete_system.sh](../scripts/run_complete_system.sh) — 完整系统一键编排
+- [scripts/run_oakd_unified.sh](../scripts/run_oakd_unified.sh) — OAK-D 统一节点入口
+- [scripts/run_imu_fusion_tf.sh](../scripts/run_imu_fusion_tf.sh) — IMU 融合 + TF 广播入口
+
 ### 归档文档（archive/）
 
 **用途**：保存历史文档以供参考或审计。
@@ -122,6 +130,7 @@ docs/
 - **第一次用？** 先读 [../README.md](../README.md)，再读 [INSTALLATION.md](./INSTALLATION.md)。
 - **需要快速答案？** 查 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md)。
 - **想写代码？** 读 [ARCHITECTURE.md](./ARCHITECTURE.md) 了解设计。
+- **想直接启动？** 先用 [run_complete_system.sh](../scripts/run_complete_system.sh)。
 - **遇到问题？** 先查 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常见问题与解决)，再查 [../README.md](../README.md#10-故障排查)。
 
 ---

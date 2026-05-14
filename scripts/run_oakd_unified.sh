@@ -1,5 +1,5 @@
 #!/bin/bash
-# 统一节点入口脚本 - 转发到特定的包内配置脚本
+# OAK-D 统一节点入口脚本 - 转发到包内配置脚本
 
 set -e
 
@@ -10,6 +10,14 @@ WORKSPACE_DIR="/home/nuc/Program/uav_vision_ws"
 PACKAGE_SCRIPTS_DIR="${WORKSPACE_DIR}/src/oakd_perception/scripts"
 TARGET_SCRIPT="${PACKAGE_SCRIPTS_DIR}/run_oakd_${TARGET_MODE}.sh"
 
+print_banner() {
+    echo ""
+    echo "=========================================================="
+    echo "$1"
+    echo "=========================================================="
+    echo ""
+}
+
 # 检查脚本是否存在
 if [ ! -f "$TARGET_SCRIPT" ]; then
     echo "错误：无法找到目标脚本 $TARGET_SCRIPT"
@@ -17,17 +25,9 @@ if [ ! -f "$TARGET_SCRIPT" ]; then
     exit 1
 fi
 
-echo "=========================================================="
-echo "  转发到模式: $TARGET_MODE"
-echo "  执行脚本: $TARGET_SCRIPT"
-echo "=========================================================="
-
-# 清理旧进程 - 改进模式匹配，避免杀死脚本自身
-echo "清理之前的OAK-D和ROS进程..."
-pkill -9 -f "oakd_.*node" || true
-pkill -9 -f "imu_fusion" || true
-pkill -9 -f "ros2" || true
-sleep 1
+print_banner "OAK-D 统一节点转发"
+echo "  模式: $TARGET_MODE"
+echo "  脚本: $TARGET_SCRIPT"
 
 # 执行目标脚本
 exec "$TARGET_SCRIPT"

@@ -60,7 +60,7 @@ Error: X_LINK_DEVICE_ALREADY_IN_USE
            │
         ┌──┴──┐────────────┐
         │     │            │
-   /imu │/tf  │ map→imu_link│
+   /imu │/tf  │ map→oakd_imu_link│
 (100Hz) │     │    (动态)   │
         │     │            │
         └─────┴────────────┘
@@ -122,15 +122,15 @@ Error: X_LINK_DEVICE_ALREADY_IN_USE
 **职责**：
 
 - 订阅融合后的 IMU（`/imu`）；
-- 广播 TF 变换 `map → imu_link`；
+- 广播 TF 变换 `map → oakd_imu_link`；
 - 使点云能随 IMU 姿态旋转（RViz 中）。
 
 **广播变换**：
 
 ```
 map (全局坐标系)
-  └── imu_link (IMU 坐标系)
-       ├── oakd_link (相机坐标系)
+  └── oakd_imu_link (IMU 融合坐标系)
+     └── oakd_camera_optical_frame (相机光学坐标系)
        └── ...
 ```
 
@@ -153,7 +153,7 @@ map (全局坐标系)
 
 3. 启动 imu_tf_broadcaster
    ├── 订阅 /imu
-   └── 广播 map → imu_link
+   └── 广播 map → oakd_imu_link
 
 4. 启动 RViz（可视化）
    ├── 订阅 /oakd/points
@@ -208,16 +208,15 @@ map (全局坐标系)
 
 ```
 map
-  └── imu_link (融合 IMU 确定的姿态)
-       ├── oakd_imu_link (IMU 物理位置)
-       └── oakd_link (相机光学中心)
+   └── oakd_imu_link (融合 IMU 确定的姿态)
+         └── oakd_camera_optical_frame (相机光学中心, 可选)
 ```
 
 ### 坐标系说明
 
 - **map**：全局世界坐标系（由 `imu_fusion` 定义为参考）；
-- **imu_link**：IMU 经融合后的坐标系，包含 orientation；
-- **oakd_link**：OAK-D 相机的机体坐标系（深度点云的参考帧）。
+- **oakd_imu_link**：IMU 经融合后的坐标系，包含 orientation，是 `imu_tf_broadcaster` 的默认 child frame；
+- **oakd_camera_optical_frame**：OAK-D 相机的光学坐标系，点云参考帧。
 
 ---
 
@@ -227,21 +226,16 @@ map
 
 ```bash
 ./scripts/run_complete_system.sh
-# 选择 1: 完整系统
 ```
 
 ### 方式 2：逐步手动启动
 
 ```bash
-# 终端 1: 统一节点
-./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py
+# 终端 1: OAK-D 统一节点
+./scripts/run_oakd_unified.sh
 
-# 终端 2: IMU 融合
-./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py \
-  raw_topic_0:=/oakd/imu/raw \
-  fused_topic_0:=/imu \
-  frame_id_0:=imu_link \
-  parent_frame:=map
+# 终端 2: IMU 融合 + TF 广播
+./scripts/run_imu_fusion_tf.sh
 
 # 终端 3: RViz 可视化
 ./scripts/with_venv.sh rviz2
@@ -251,7 +245,7 @@ map
 
 ```bash
 # 仅统一节点（不含融合）
-./scripts/with_venv.sh ros2 run oakd_perception oakd_unified_node
+./scripts/run_oakd_unified.sh
 ```
 
 ---

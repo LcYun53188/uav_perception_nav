@@ -213,14 +213,16 @@ filtered, stats = filter.filter_adaptive(points)
 
 ```bash
 # 终端1：启动OAK-D统一节点
-./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py
+./scripts/run_oakd_unified.sh
 
-# 终端2：启动IMU融合（可选）
-./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py
+# 终端2：启动IMU融合 + TF广播（可选）
+./scripts/run_imu_fusion_tf.sh
 
 # 终端3：启动可视化RViz（可选）
 ./scripts/with_venv.sh rviz2
 ```
+
+> 说明：`run_oakd_unified.sh` 负责 OAK-D 统一节点，`run_imu_fusion_tf.sh` 负责 IMU 融合与 TF 广播；`run_complete_system.sh` 提供一键编排入口。
 
 ### 方式2：一键启动完整系统
 

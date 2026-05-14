@@ -17,6 +17,13 @@
 
 ```bash
 ./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py
+./scripts/run_oakd_unified.sh
+```
+
+### 仅 IMU 融合 + TF 广播
+
+```bash
+./scripts/run_imu_fusion_tf.sh
 ```
 
 ### 验证系统
@@ -34,7 +41,7 @@
 | `/oakd/imu/raw` | sensor_msgs/Imu | 400Hz | 原始 IMU 数据 |
 | `/oakd/points` | sensor_msgs/PointCloud2 | 20Hz | 深度点云 |
 | `/imu` | sensor_msgs/Imu | 100Hz | 融合后 IMU 数据 |
-| `/tf` | tf2/TFMessage | 动态 | map → imu_link 变换 |
+| `/tf` | tf2/TFMessage | 动态 | map → oakd_imu_link 变换 |
 
 ---
 
@@ -135,12 +142,12 @@ sleep 2
 
 1. **启动 RViz**：`./scripts/with_venv.sh rviz2`
 2. **设置全局选项**：
-   - Fixed Frame: `map` 或 `oakd_link`
+  - Fixed Frame: `map`
 3. **添加 PointCloud2**：
-   - Topic: `/oakd/points`
-   - Color Transformer: `Z` 或 `Intensity`
+  - Topic: `/oakd/points`
+  - Color Transformer: `Z` 或 `Intensity`
 4. **添加 TF**（若使用 IMU 联动）：
-   - 显示坐标系树 `map → imu_link`
+  - 显示坐标系树 `map → oakd_imu_link`
 
 ---
 
@@ -155,7 +162,7 @@ oakd_unified_node（单一进程）
      ↓
 IMU 融合链路
 ├─ imu_fusion_node → /imu (融合后)
-└─ imu_tf_broadcaster → TF (map → imu_link)
+└─ imu_tf_broadcaster → TF (map → oakd_imu_link)
      ↓
 应用层（RViz、导航等）
 ```

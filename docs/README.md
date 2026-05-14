@@ -10,6 +10,7 @@
 - **需要快速命令？** 参考 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md)。
 - **想了解安装过程？** 查阅 [INSTALLATION.md](./INSTALLATION.md)。
 - **需要深入技术细节？** 阅读 [ARCHITECTURE.md](./ARCHITECTURE.md)。
+- **想直接运行系统？** 使用 [../scripts/run_complete_system.sh](../scripts/run_complete_system.sh)、[../scripts/run_oakd_unified.sh](../scripts/run_oakd_unified.sh)、[../scripts/run_imu_fusion_tf.sh](../scripts/run_imu_fusion_tf.sh)。
 
 ---
 
@@ -31,6 +32,7 @@
 1. 阅读 [INDEX.md](./INDEX.md)（5 分钟）
 2. 按照 [INSTALLATION.md](./INSTALLATION.md) 配置环境（15 分钟）
 3. 查看 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) 启动节点（5 分钟）
+4. 优先使用标准脚本入口完成启动
 
 ---
 
@@ -82,6 +84,9 @@ mv UNIFIED_NODE_ARCHITECTURE.md docs/archive/
 ## 相关链接
 
 - [主 README](../README.md)
+- [完整系统启动脚本](../scripts/run_complete_system.sh)
+- [OAK-D 统一节点脚本](../scripts/run_oakd_unified.sh)
+- [IMU 融合 + TF 广播脚本](../scripts/run_imu_fusion_tf.sh)
 - [GitHub 上该项目](https://github.com)（如有）
 - [DepthAI 官方](https://docs.luxonis.com/)
 - [ROS 2 官方](https://docs.ros.org/)

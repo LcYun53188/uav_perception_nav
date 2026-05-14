@@ -25,7 +25,7 @@ source .venv/bin/activate
 ./scripts/run_complete_system.sh
 ```
 
-3. 打开 RViz：设置 `Fixed Frame` 为 `oakd_link`（或 `map` 若启用 IMU 联动），添加 `/oakd/points` 的 `PointCloud2` 显示。
+3. 打开 RViz：按脚本提示将 `Fixed Frame` 设为 `map`，再添加 `/oakd/points` 的 `PointCloud2` 显示。
 
 ---
 
@@ -73,12 +73,12 @@ source .venv/bin/activate
    ├─ IMU 采样 → /oakd/imu/raw  (400Hz)
    └─ 深度处理 → /oakd/points    (~20Hz)
 
-上游：/oakd/imu/raw -> imu_fusion -> /imu (融合) -> imu_tf_broadcaster -> TF(map -> imu_link)
+上游：/oakd/imu/raw -> imu_fusion -> /imu (融合) -> imu_tf_broadcaster -> TF(map -> oakd_imu_link)
 ```
 
 要点：
 - 将 IMU 与深度放在同一进程（统一节点）避免 USB/设备冲突；
-- `imu_fusion` 负责从原始 IMU 出来姿态估计并广播 `map -> imu_link`；
+- `imu_fusion` 负责从原始 IMU 出来姿态估计并广播 `map -> oakd_imu_link`；
 - RViz 的 `Fixed Frame` 决定点云是否随 IMU 姿态旋转（`map` 时会跟随 TF）。
 
 ---
@@ -154,13 +154,14 @@ uv pip install --python .venv/bin/python -e src/oakd_perception depthai
 
 **解决**：使用 `oakd_unified_node` 在单一进程中同时处理 IMU 与深度。
 
-启动（交互脚本或手动）：
+启动（推荐使用脚本）：
 
 ```bash
 chmod +x scripts/run_complete_system.sh
-./scripts/run_complete_system.sh    # 选择完整系统或仅设备
-# 或
-./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py
+./scripts/run_complete_system.sh
+
+# 仅启动 OAK-D 统一节点
+./scripts/run_oakd_unified.sh
 ```
 
 统一节点常用参数示例：
@@ -180,16 +181,16 @@ chmod +x scripts/run_complete_system.sh
 建议架构：
 
 - 统一节点发布 `/oakd/imu/raw`（原始 IMU）；
-- `imu_fusion` 订阅原始 IMU，输出融合后 `/imu`（含 orientation），并由 `imu_tf_broadcaster` 广播 `map -> imu_link`。
+- `imu_fusion` 订阅原始 IMU，输出融合后 `/imu`（含 orientation），并由 `imu_tf_broadcaster` 广播 `map -> oakd_imu_link`。
 
 手动启动链路示例：
 
 ```bash
 # 统一节点（IMU+深度）
-./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py
+./scripts/run_oakd_unified.sh
 
 # IMU 融合与 TF 广播
-./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py
+./scripts/run_imu_fusion_tf.sh
 ```
 
 ---
@@ -239,7 +240,7 @@ chmod +x scripts/run_complete_system.sh
 
 ### 6.2 若要点云随 IMU 姿态旋转
 
-- 确保 `imu_fusion` 正常发布 `/imu` 并广播 `map -> imu_link`；
+- 确保 `imu_fusion` 正常发布 `/imu` 并广播 `map -> oakd_imu_link`；
 - 将 RViz `Fixed Frame` 设为 `map`；
 - 添加 `TF` 显示以验证 frame 关系。
 
@@ -284,7 +285,7 @@ pkill -9 -f "oakd"
 常用 frame：
 
 - `oakd_link`：深度点云发布时的相机机体坐标系；
-- `oakd_imu_link`：IMU 原始数据所用 frame；
+- `oakd_imu_link`：IMU 原始数据和融合 TF 链中的默认 frame；
 - `map`：全局世界坐标系（由上层定位或 `imu_fusion` 提供）。
 
 注意：ROS 中位置单位为米（m），但节点参数中 `min_depth`/`max_depth` 以毫米（mm）表示（换算 1m = 1000mm）。
@@ -303,12 +304,13 @@ from tf2_ros import Buffer, TransformListener
 import rclpy
 
 node = rclpy.create_node('tf_query')
- tf_buffer = Buffer()
- tf_listener = TransformListener(tf_buffer, node)
- try:
-     trans = tf_buffer.lookup_transform('oakd_link', 'oakd_imu_link', rclpy.time.Time())
- except Exception as e:
-     node.get_logger().warn(f"TF lookup failed: {e}")
+tf_buffer = Buffer()
+tf_listener = TransformListener(tf_buffer, node)
+
+try:
+    trans = tf_buffer.lookup_transform('map', 'oakd_imu_link', rclpy.time.Time())
+except Exception as e:
+  node.get_logger().warn(f"TF lookup failed: {e}")
 ```
 
 静态安装偏差：使用 `static_transform_publisher` 或在 launch 中设置静态变换进行校正。

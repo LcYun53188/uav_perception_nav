@@ -30,8 +30,8 @@ cd /home/nuc/Program/uav_vision_ws
   --ros-args \
   --params-file src/oakd_perception/config/imu_default.yaml
 
-# 方式3: 一次性启动 raw + fusion + TF
-./scripts/with_venv.sh ros2 launch oakd_imu_fusion oakd_imu_fusion.launch.py
+# 方式3: 一次性启动 raw + fusion + TF（推荐）
+./scripts/run_complete_system.sh
 ```
 
 ### 2.1 运行 IMU 融合和 TF 广播器
@@ -39,19 +39,7 @@ cd /home/nuc/Program/uav_vision_ws
 如果只想单独启动融合和 TF 广播器，可以这样运行：
 
 ```bash
-# 姿态融合
-./scripts/with_venv.sh ros2 run oakd_imu_fusion oakd_imu_fusion_node \
-  --ros-args \
-  -p input_topic:=/oakd/imu/raw \
-  -p output_topic:=/oakd/imu \
-  -p frame_id:=oakd_imu_link
-
-# TF 广播器
-./scripts/with_venv.sh ros2 run oakd_imu_fusion oakd_imu_tf_broadcaster \
-  --ros-args \
-  -p input_topic:=/oakd/imu \
-  -p parent_frame:=map \
-  -p child_frame:=oakd_imu_link
+./scripts/run_imu_fusion_tf.sh
 ```
 
 ### 3. 查看 IMU 数据
@@ -123,7 +111,7 @@ imu.angular_velocity_covariance       # 陀螺仪协方差 (3x3)
 
 然后运行：
 ```bash
-./scripts/with_venv.sh ros2 launch oakd_imu_fusion oakd_imu_fusion.launch.py
+./scripts/run_complete_system.sh
 ```
 
 ### 使用两个终端
@@ -136,8 +124,7 @@ imu.angular_velocity_covariance       # 陀螺仪协方差 (3x3)
 终端2：
 ```bash
 ./scripts/with_venv.sh ros2 run oakd_perception oakd_imu_node
-./scripts/with_venv.sh ros2 run oakd_imu_fusion oakd_imu_fusion_node
-./scripts/with_venv.sh ros2 run oakd_imu_fusion oakd_imu_tf_broadcaster
+./scripts/run_imu_fusion_tf.sh
 ```
 
 ## 故障排除
