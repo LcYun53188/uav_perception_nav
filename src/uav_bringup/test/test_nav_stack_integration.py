@@ -1,22 +1,21 @@
 import unittest
-import rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import PointCloud2
-from nav_msgs.msg import OccupancyGrid
+
 from geometry_msgs.msg import TwistStamped
-from std_msgs.msg import Header
+import launch
+import launch_ros
+import launch_testing
+from nav_msgs.msg import OccupancyGrid
+import pytest
+import rclpy
+from sensor_msgs.msg import PointCloud2
 
 try:
     from px4_msgs.msg import TrajectorySetpoint
+
     PX4_AVAILABLE = True
 except ImportError:
     PX4_AVAILABLE = False
 
-import launch
-import launch_ros
-import launch_testing
-import launch_testing_ros
-import pytest
 
 @pytest.mark.rostest
 def generate_test_description():
@@ -40,10 +39,20 @@ def generate_test_description():
         launch_ros.actions.Node(
             package='tf2_ros',
             executable='static_transform_publisher',
-            arguments=['0', '0', '0', '0', '0', '0', 'map', 'oakd_camera_optical_frame']
+            arguments=[
+                '0',
+                '0',
+                '0',
+                '0',
+                '0',
+                '0',
+                'map',
+                'oakd_camera_optical_frame',
+            ],
         ),
         launch_testing.actions.ReadyToTest(),
     ])
+
 
 class TestNavStackIntegration(unittest.TestCase):
     @classmethod
@@ -62,16 +71,31 @@ class TestNavStackIntegration(unittest.TestCase):
 
     def test_pipeline_flow(self):
         pc_pub = self.node.create_publisher(PointCloud2, '/oakd/points', 10)
-        
+
         map_received = []
-        self.node.create_subscription(OccupancyGrid, '/local_map/occupancy', lambda msg: map_received.append(msg), 10)
-        
+        self.node.create_subscription(
+            OccupancyGrid,
+            '/local_map/occupancy',
+            lambda msg: map_received.append(msg),
+            10,
+        )
+
         cmd_vel_received = []
-        self.node.create_subscription(TwistStamped, '/nav/cmd_vel', lambda msg: cmd_vel_received.append(msg), 10)
-        
+        self.node.create_subscription(
+            TwistStamped,
+            '/nav/cmd_vel',
+            lambda msg: cmd_vel_received.append(msg),
+            10,
+        )
+
         px4_setpoint_received = []
         if PX4_AVAILABLE:
-            self.node.create_subscription(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', lambda msg: px4_setpoint_received.append(msg), 10)
+            self.node.create_subscription(
+                TrajectorySetpoint,
+                '/fmu/in/trajectory_setpoint',
+                lambda msg: px4_setpoint_received.append(msg),
+                10,
+            )
 
         msg = PointCloud2()
         msg.header.stamp = self.node.get_clock().now().to_msg()
@@ -85,12 +109,29 @@ class TestNavStackIntegration(unittest.TestCase):
         msg.data = struct.pack('fff', 1.0, 0.0, 0.0)
         from sensor_msgs.msg import PointField
         msg.fields = [
-            PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
-            PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
-            PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
+            PointField(
+                name='x',
+                offset=0,
+                datatype=PointField.FLOAT32,
+                count=1,
+            ),
+            PointField(
+                name='y',
+                offset=4,
+                datatype=PointField.FLOAT32,
+                count=1,
+            ),
+            PointField(
+                name='z',
+                offset=8,
+                datatype=PointField.FLOAT32,
+                count=1,
+            ),
         ]
 
-        end_time = self.node.get_clock().now() + rclpy.duration.Duration(seconds=10.0)
+        end_time = self.node.get_clock().now() + rclpy.duration.Duration(
+            seconds=10.0
+        )
         while rclpy.ok() and self.node.get_clock().now() < end_time:
             pc_pub.publish(msg)
             rclpy.spin_once(self.node, timeout_sec=0.1)
@@ -98,7 +139,7 @@ class TestNavStackIntegration(unittest.TestCase):
                 if not PX4_AVAILABLE or len(px4_setpoint_received) > 0:
                     break
 
-        self.assertGreater(len(map_received), 0, "Did not receive OccupancyGrid")
-        self.assertGreater(len(cmd_vel_received), 0, "Did not receive cmd_vel")
+        self.assertGreater(len(map_received), 0)
+        self.assertGreater(len(cmd_vel_received), 0)
         if PX4_AVAILABLE:
-            self.assertGreater(len(px4_setpoint_received), 0, "Did not receive PX4 setpoint")
+            self.assertGreater(len(px4_setpoint_received), 0)

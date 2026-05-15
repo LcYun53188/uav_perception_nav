@@ -24,6 +24,33 @@ source install/setup.bash
 ros2 topic echo /nav/cmd_vel
 ```
 
+### 4. 查看局部地图
+
+#### 方式 1：终端查看地图话题
+```bash
+source install/setup.bash
+ros2 topic echo /local_map/occupancy --no-arr | head -40
+```
+
+也可以查看发布频率和消息类型：
+```bash
+ros2 topic info /local_map/occupancy
+ros2 topic hz /local_map/occupancy
+```
+
+#### 方式 2：RViz 可视化查看
+```bash
+source install/setup.bash
+./scripts/with_venv.sh rviz2
+```
+
+在 RViz 中：
+
+- Fixed Frame 设为 `map`；
+- 添加 `Map` 显示；
+- Topic 选择 `/local_map/occupancy`；
+- 如果同时看点云，可再添加 `/oakd/points` 的 `PointCloud2`。
+
 **预期输出**:
 ```yaml
 header:

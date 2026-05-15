@@ -1,62 +1,60 @@
-import rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import Imu, PointCloud2
-import sensor_msgs_py.point_cloud2 as pc2
-from std_msgs.msg import Header
+"""Unified OAK-D node for IMU and depth data."""
+
 import depthai as dai
 import numpy as np
+import rclpy
+import sensor_msgs_py.point_cloud2 as pc2
+from rclpy.node import Node
+from sensor_msgs.msg import Imu, PointCloud2
+from std_msgs.msg import Header
 
 
 class OakDUnifiedNode(Node):
-    """
-    统一的OAK-D节点，同时处理IMU和深度数据。
-    单一device连接解决并发访问冲突。
-    IMU频率：400Hz（可配置）
-    点云频率：20Hz（可配置）
-    """
-    
+    """Unified OAK-D node for IMU and depth data."""
+
     def __init__(self):
-        super().__init__('oakd_unified_node')
+        """Initialize the unified OAK-D node."""
+        super().__init__("oakd_unified_node")
 
         # ============ IMU配置参数 ============
-        self.declare_parameter('imu_frequency', 400)
-        self.declare_parameter('gyro_full_scale', 'gyroscope_2000_dps')
-        self.declare_parameter('accel_full_scale', 'accelerometer_4g')
-        self.declare_parameter('imu_topic_name', '/oakd/imu/raw')
-        self.declare_parameter('imu_frame_id', 'oakd_imu_link')
-        
+        self.declare_parameter("imu_frequency", 400)
+        self.declare_parameter("gyro_full_scale", "gyroscope_2000_dps")
+        self.declare_parameter("accel_full_scale", "accelerometer_4g")
+        self.declare_parameter("imu_topic_name", "/oakd/imu/raw")
+        self.declare_parameter("imu_frame_id", "oakd_imu_link")
+
         # ============ 深度模式开关配置 ============
-        self.declare_parameter('enable_passive_stereo', True)
-        self.declare_parameter('enable_active_stereo', False)
-        self.declare_parameter('ir_intensity', 1600)
-        
+        self.declare_parameter("enable_passive_stereo", True)
+        self.declare_parameter("enable_active_stereo", False)
+        self.declare_parameter("ir_intensity", 1600)
+
         # ============ 点云过滤参数配置 ============
-        self.declare_parameter('pointcloud_frequency', 20)
-        self.declare_parameter('pointcloud_topic', '/oakd/points')
-        self.declare_parameter('pointcloud_frame_id', 'oakd_imu_link')
-        self.declare_parameter('sampling_step', 2)
-        self.declare_parameter('min_depth', 200)
-        self.declare_parameter('max_depth', 5000)
+        self.declare_parameter("pointcloud_frequency", 20)
+        self.declare_parameter("pointcloud_topic", "/oakd/points")
+        self.declare_parameter("pointcloud_frame_id", "oakd_imu_link")
+        self.declare_parameter("sampling_step", 2)
+        self.declare_parameter("min_depth", 200)
+        self.declare_parameter("max_depth", 5000)
 
         # 获取IMU参数
-        self.imu_frequency = self.get_parameter('imu_frequency').value
-        self.gyro_full_scale = self.get_parameter('gyro_full_scale').value
-        self.accel_full_scale = self.get_parameter('accel_full_scale').value
-        self.imu_topic_name = self.get_parameter('imu_topic_name').value
-        self.imu_frame_id = self.get_parameter('imu_frame_id').value
-        
+        self.imu_frequency = self.get_parameter("imu_frequency").value
+        self.gyro_full_scale = self.get_parameter("gyro_full_scale").value
+        self.accel_full_scale = self.get_parameter("accel_full_scale").value
+        self.imu_topic_name = self.get_parameter("imu_topic_name").value
+        self.imu_frame_id = self.get_parameter("imu_frame_id").value
+
         # 获取深度参数
-        self.enable_passive_stereo = self.get_parameter('enable_passive_stereo').value
-        self.enable_active_stereo = self.get_parameter('enable_active_stereo').value
-        self.ir_intensity = self.get_parameter('ir_intensity').value
-        
+        self.enable_passive_stereo = self.get_parameter("enable_passive_stereo").value
+        self.enable_active_stereo = self.get_parameter("enable_active_stereo").value
+        self.ir_intensity = self.get_parameter("ir_intensity").value
+
         # 获取点云参数
-        self.pointcloud_frequency = self.get_parameter('pointcloud_frequency').value
-        self.pointcloud_topic = self.get_parameter('pointcloud_topic').value
-        self.pointcloud_frame_id = self.get_parameter('pointcloud_frame_id').value
-        self.sampling_step = self.get_parameter('sampling_step').value
-        self.min_depth = self.get_parameter('min_depth').value
-        self.max_depth = self.get_parameter('max_depth').value
+        self.pointcloud_frequency = self.get_parameter("pointcloud_frequency").value
+        self.pointcloud_topic = self.get_parameter("pointcloud_topic").value
+        self.pointcloud_frame_id = self.get_parameter("pointcloud_frame_id").value
+        self.sampling_step = self.get_parameter("sampling_step").value
+        self.min_depth = self.get_parameter("min_depth").value
+        self.max_depth = self.get_parameter("max_depth").value
 
         # 发布器
         self.imu_pub = self.create_publisher(Imu, self.imu_topic_name, 10)
@@ -66,7 +64,7 @@ class OakDUnifiedNode(Node):
         self.imu_queue = None
         self.depth_queue = None
         self.pipeline = dai.Pipeline()
-        
+
         # 设置管道
         try:
             self.setup_pipeline()
@@ -81,10 +79,12 @@ class OakDUnifiedNode(Node):
 
         # 获取相机标定信息
         self.setup_calibration()
-        
+
         # 日志信息
-        self.get_logger().info(f"深度模式 - 被动立体: {self.enable_passive_stereo}, "
-                              f"主动立体: {self.enable_active_stereo}")
+        self.get_logger().info(
+            f"深度模式 - 被动立体: {self.enable_passive_stereo}, "
+            f"主动立体: {self.enable_active_stereo}"
+        )
         if self.enable_active_stereo:
             self.get_logger().info(f"IR强度: {self.ir_intensity}")
 
@@ -97,7 +97,7 @@ class OakDUnifiedNode(Node):
         self.pc_timer = self.create_timer(pc_period, self.publish_pointcloud)
 
     def setup_pipeline(self):
-        """配置DAI管道：IMU + 深度"""
+        """Configure the DAI pipeline for IMU and depth."""
         # ============ 配置IMU ============
         imu = self.pipeline.create(dai.node.IMU)
         imu.enableIMUSensor(
@@ -121,7 +121,7 @@ class OakDUnifiedNode(Node):
 
         # 主动立体配置
         ir_enabled = False
-        if self.enable_active_stereo and hasattr(dai.node, 'IRIlluminator'):
+        if self.enable_active_stereo and hasattr(dai.node, "IRIlluminator"):
             try:
                 ir_illuminator = self.pipeline.create(dai.node.IRIlluminator)
                 ir_illuminator.setIntensity(self.ir_intensity)
@@ -130,47 +130,51 @@ class OakDUnifiedNode(Node):
                 self.get_logger().info(f"IR投影仪已启用，强度: {self.ir_intensity}")
             except Exception as e:
                 self.get_logger().warn(f"IR投影仪启用失败: {e}，使用被动立体")
-        
+
         # 选择预设模式
         if ir_enabled or self.enable_active_stereo:
-            if hasattr(dai.node.StereoDepth.PresetMode, 'HIGH_DENSITY'):
+            if hasattr(dai.node.StereoDepth.PresetMode, "HIGH_DENSITY"):
                 preset_mode = dai.node.StereoDepth.PresetMode.HIGH_DENSITY
-            elif hasattr(dai.node.StereoDepth.PresetMode, 'MEDIUM_DENSITY'):
+            elif hasattr(dai.node.StereoDepth.PresetMode, "MEDIUM_DENSITY"):
                 preset_mode = dai.node.StereoDepth.PresetMode.MEDIUM_DENSITY
             else:
                 preset_mode = dai.node.StereoDepth.PresetMode.FAST_DENSITY
         else:
-            if hasattr(dai.node.StereoDepth.PresetMode, 'FAST_DENSITY'):
+            if hasattr(dai.node.StereoDepth.PresetMode, "FAST_DENSITY"):
                 preset_mode = dai.node.StereoDepth.PresetMode.FAST_DENSITY
-            elif hasattr(dai.node.StereoDepth.PresetMode, 'MEDIUM_DENSITY'):
+            elif hasattr(dai.node.StereoDepth.PresetMode, "MEDIUM_DENSITY"):
                 preset_mode = dai.node.StereoDepth.PresetMode.MEDIUM_DENSITY
             else:
                 preset_mode = dai.node.StereoDepth.PresetMode.HIGH_DENSITY
-        
+
         stereo.setDefaultProfilePreset(preset_mode)
         stereo.setLeftRightCheck(True)
         stereo.setSubpixel(True)
-        
+
         # 硬件滤镜配置
-        if hasattr(stereo.initialConfig, 'get'):
+        if hasattr(stereo.initialConfig, "get"):
             config = stereo.initialConfig.get()
         else:
             config = stereo.initialConfig
-        
-        pp = getattr(config, 'postProcessing', None)
+
+        pp = getattr(config, "postProcessing", None)
         if pp is not None:
-            if hasattr(pp, 'medianFilter'):
-                pp.medianFilter = dai.MedianFilter.KERNEL_7x7 if self.enable_passive_stereo else dai.MedianFilter.KERNEL_5x5
-            spatial = getattr(pp, 'spatialFilter', None)
-            if spatial is not None and hasattr(spatial, 'enable'):
+            if hasattr(pp, "medianFilter"):
+                pp.medianFilter = (
+                    dai.MedianFilter.KERNEL_7x7
+                    if self.enable_passive_stereo
+                    else dai.MedianFilter.KERNEL_5x5
+                )
+            spatial = getattr(pp, "spatialFilter", None)
+            if spatial is not None and hasattr(spatial, "enable"):
                 spatial.enable = self.enable_passive_stereo
-                if hasattr(spatial, 'holeFillingRadius'):
+                if hasattr(spatial, "holeFillingRadius"):
                     spatial.holeFillingRadius = 2 if self.enable_passive_stereo else 1
-            temporal = getattr(pp, 'temporalFilter', None)
-            if temporal is not None and hasattr(temporal, 'enable'):
+            temporal = getattr(pp, "temporalFilter", None)
+            if temporal is not None and hasattr(temporal, "enable"):
                 temporal.enable = True
-        
-        if hasattr(stereo.initialConfig, 'set'):
+
+        if hasattr(stereo.initialConfig, "set"):
             stereo.initialConfig.set(config)
 
         monoLeft.out.link(stereo.left)
@@ -179,15 +183,15 @@ class OakDUnifiedNode(Node):
         self.get_logger().info("深度管道配置完成")
 
     def setup_calibration(self):
-        """获取相机标定信息"""
+        """Load camera calibration data."""
         self.fx = 400.0
         self.fy = 400.0
         self.cx = 320.0
         self.cy = 200.0
-        
+
         try:
             device = self.pipeline.getDevice()
-            if device is not None and hasattr(device, 'readCalibration'):
+            if device is not None and hasattr(device, "readCalibration"):
                 calibData = device.readCalibration()
                 self.intrinsics = calibData.getCameraIntrinsics(
                     dai.CameraBoardSocket.RIGHT, 640, 400
@@ -204,7 +208,7 @@ class OakDUnifiedNode(Node):
             self.get_logger().warn(f"标定信息加载失败，使用默认值: {e}")
 
     def publish_imu(self):
-        """发布IMU数据（高频）"""
+        """Publish IMU data."""
         if self.imu_queue is None:
             return
 
@@ -219,27 +223,39 @@ class OakDUnifiedNode(Node):
                 imu_msg.header.stamp = self.get_clock().now().to_msg()
                 imu_msg.header.frame_id = self.imu_frame_id
 
-                accel_data = getattr(packet, 'acceleroMeter', None)
+                accel_data = getattr(packet, "acceleroMeter", None)
                 if accel_data is not None:
-                    imu_msg.linear_acceleration.x = float(getattr(accel_data, 'x', 0.0))
-                    imu_msg.linear_acceleration.y = float(getattr(accel_data, 'y', 0.0))
-                    imu_msg.linear_acceleration.z = float(getattr(accel_data, 'z', 0.0))
+                    imu_msg.linear_acceleration.x = float(getattr(accel_data, "x", 0.0))
+                    imu_msg.linear_acceleration.y = float(getattr(accel_data, "y", 0.0))
+                    imu_msg.linear_acceleration.z = float(getattr(accel_data, "z", 0.0))
 
-                gyro_data = getattr(packet, 'gyroscope', None)
+                gyro_data = getattr(packet, "gyroscope", None)
                 if gyro_data is not None:
-                    imu_msg.angular_velocity.x = float(getattr(gyro_data, 'x', 0.0))
-                    imu_msg.angular_velocity.y = float(getattr(gyro_data, 'y', 0.0))
-                    imu_msg.angular_velocity.z = float(getattr(gyro_data, 'z', 0.0))
+                    imu_msg.angular_velocity.x = float(getattr(gyro_data, "x", 0.0))
+                    imu_msg.angular_velocity.y = float(getattr(gyro_data, "y", 0.0))
+                    imu_msg.angular_velocity.z = float(getattr(gyro_data, "z", 0.0))
 
                 imu_msg.linear_acceleration_covariance = [
-                    0.01, 0.0, 0.0,
-                    0.0, 0.01, 0.0,
-                    0.0, 0.0, 0.01,
+                    0.01,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.01,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.01,
                 ]
                 imu_msg.angular_velocity_covariance = [
-                    0.001, 0.0, 0.0,
-                    0.0, 0.001, 0.0,
-                    0.0, 0.0, 0.001,
+                    0.001,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.001,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.001,
                 ]
                 imu_msg.orientation_covariance[0] = -1.0
                 self.imu_pub.publish(imu_msg)
@@ -247,7 +263,7 @@ class OakDUnifiedNode(Node):
             self.get_logger().warn(f"IMU数据处理失败: {e}")
 
     def publish_pointcloud(self):
-        """发布点云数据（低频）"""
+        """Publish point cloud data."""
         if self.depth_queue is None:
             return
 
@@ -257,10 +273,10 @@ class OakDUnifiedNode(Node):
                 return
 
             depth_frame = inDepth.getFrame()
-            
+
             step = self.sampling_step
             depth_down = depth_frame[::step, ::step]
-            
+
             height, width = depth_down.shape
             u = np.arange(0, width * step, step)
             v = np.arange(0, height * step, step)
@@ -272,24 +288,25 @@ class OakDUnifiedNode(Node):
             y = (vv[valid_mask] - self.cy) * z / self.fy
 
             points = np.stack((x, y, z), axis=-1).astype(np.float32)
-            
+
             header = Header()
             header.stamp = self.get_clock().now().to_msg()
             header.frame_id = self.pointcloud_frame_id
-            
+
             pc_msg = pc2.create_cloud_xyz32(header, points)
             self.pc_pub.publish(pc_msg)
         except Exception as e:
             self.get_logger().warn(f"点云发布失败: {e}")
 
     def destroy_node(self):
-        """销毁节点时清理资源"""
-        if hasattr(self, 'pipeline') and hasattr(self.pipeline, 'stop'):
+        """Clean up resources before destroying the node."""
+        if hasattr(self, "pipeline") and hasattr(self.pipeline, "stop"):
             self.pipeline.stop()
         super().destroy_node()
 
 
 def main(args=None):
+    """Run the unified OAK-D node."""
     rclpy.init(args=args)
     node = OakDUnifiedNode()
     try:
@@ -301,5 +318,5 @@ def main(args=None):
         rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

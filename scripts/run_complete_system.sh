@@ -32,6 +32,28 @@ print_banner() {
     echo ""
 }
 
+wait_for_tf_ready() {
+    local target_frame="${1}"
+    local source_frame="${2}"
+    local timeout_sec="${3:-20}"
+    local elapsed=0
+
+    echo "⏳ 等待 TF 就绪: ${target_frame} -> ${source_frame} (超时 ${timeout_sec}s)"
+    while [ "$elapsed" -lt "$timeout_sec" ]; do
+        if timeout 2 ros2 run tf2_ros tf2_echo "${target_frame}" "${source_frame}" >/tmp/tf_wait.log 2>&1; then
+            if grep -q "At time" /tmp/tf_wait.log; then
+                echo "✅ TF 已就绪: ${target_frame} -> ${source_frame}"
+                return 0
+            fi
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+
+    echo "⚠️  TF 在 ${timeout_sec}s 内未确认就绪，继续启动 RViz（可能短暂提示 frame 不存在）"
+    return 1
+}
+
 cleanup_processes
 source "$SOURCE_SETUP"
 
@@ -78,8 +100,8 @@ case $MODE in
             cd ${WORKSPACE}
             bash ./scripts/run_imu_fusion_tf.sh
         " 2>/dev/null &
-        
-        sleep 2
+
+        wait_for_tf_ready "${IMU_PARENT_FRAME}" "${IMU_FRAME_ID}" 20 || true
         
         # Terminal 3: RViz可视化
         echo "📍 【终端3】启动RViz可视化..."
@@ -133,7 +155,8 @@ case $MODE in
         # IMU融合
         echo "📍 启动 IMU 融合 + TF 广播"
         bash ./scripts/run_imu_fusion_tf.sh &
-        sleep 2
+
+        wait_for_tf_ready "${IMU_PARENT_FRAME}" "${IMU_FRAME_ID}" 20 || true
         
         # RViz
         echo "📍 启动 RViz..."
