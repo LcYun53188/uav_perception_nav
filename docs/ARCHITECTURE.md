@@ -48,23 +48,19 @@ Error: X_LINK_DEVICE_ALREADY_IN_USE
     └───┬────┘      └────┬────┘   └─────────┘
         │                │
         │ /oakd/imu/raw  │ /oakd/points
-        │ (400Hz)        │ (20Hz)
-        └────┬───────────┘
-             │
       ┌──────▼─────────────┐
       │  imu_fusion_node   │ (融合 + TF 广播)
       ├────────────────────┤
-      │ - 计算融合姿态     │
-      │ - 广播 TF         │
-      └────┬───────────────┘
            │
         ┌──┴──┐────────────┐
         │     │            │
    /imu │/tf  │ map→oakd_imu_link│
 (100Hz) │     │    (动态)   │
         │     │            │
+            │ /oakd/imu/raw  │ /oakd/points
+            │                │ /oakd/points_filtered
         └─────┴────────────┘
-```
+     发布 `/oakd/imu/raw`、`/oakd/points` 与 `/oakd/points_filtered`。
 
 ### 架构对比
 
@@ -87,10 +83,9 @@ Error: X_LINK_DEVICE_ALREADY_IN_USE
 
 - 创建单一 DAI Pipeline 实例；
 - 同时管理 IMU 与深度模块；
-- 发布 `/oakd/imu/raw` 与 `/oakd/points`。
+- 发布 `/oakd/imu/raw`、`/oakd/points` 与 `/oakd/points_filtered`。
 
 **关键特性**：
-
 - 单进程设计，避免设备冲突；
 - 可配置的发布频率与参数；
 - 集成立体深度模式（被动/主动）。
@@ -99,7 +94,8 @@ Error: X_LINK_DEVICE_ALREADY_IN_USE
 
 ```
 /oakd/imu/raw     (sensor_msgs/Imu, 400Hz)
-/oakd/points      (sensor_msgs/PointCloud2, 20Hz)
+/oakd/points      (sensor_msgs/PointCloud2, 20Hz, raw)
+/oakd/points_filtered (sensor_msgs/PointCloud2, 20Hz, filtered)
 ```
 
 ### 2. imu_fusion_node
@@ -122,9 +118,6 @@ Error: X_LINK_DEVICE_ALREADY_IN_USE
 **职责**：
 
 - 订阅融合后的 IMU（`/imu`）；
-- 广播 TF 变换 `map → oakd_imu_link`；
-- 使点云能随 IMU 姿态旋转（RViz 中）。
-
 **广播变换**：
 
 ```
@@ -144,7 +137,6 @@ map (全局坐标系)
 1. 启动 oakd_unified_node
    ├── 初始化 OAK-D SDK
    ├── 配置 IMU 采样（400Hz）
-   ├── 配置深度处理（20Hz）
    └── 开始发布数据
 
 2. 启动 imu_fusion
@@ -156,7 +148,7 @@ map (全局坐标系)
    └── 广播 map → oakd_imu_link
 
 4. 启动 RViz（可视化）
-   ├── 订阅 /oakd/points
+  ├── 订阅 /oakd/points_filtered
    ├── 订阅 /tf
    └── 显示点云与 TF 树
 ```
@@ -172,8 +164,8 @@ map (全局坐标系)
                                    /tf
                                  (动态)
 
-/oakd/points ───► RViz
-  (20Hz)      (订阅与显示)
+/oakd/points_filtered ───► RViz
+  (20Hz)             (订阅与显示)
 ```
 
 ---
@@ -186,33 +178,18 @@ map (全局坐标系)
 |------|------|--------|------|
 | `imu_frequency` | int | 400 | 采样频率（Hz） |
 | `imu_topic_name` | str | /oakd/imu/raw | 发布主题 |
-| `imu_frame_id` | str | oakd_imu_link | 坐标系 |
-
-### 深度配置
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `enable_passive_stereo` | bool | true | 被动立体 |
-| `enable_active_stereo` | bool | false | 主动立体 |
-| `ir_intensity` | int | 1600 | 红外强度 |
 | `sampling_step` | int | 2 | 下采样步长 |
-| `min_depth` | int | 200 | 最小深度（mm） |
 | `max_depth` | int | 5000 | 最大深度（mm） |
 | `pointcloud_frequency` | int | 20 | 点云频率（Hz） |
 
----
 
-## 坐标系定义
-
-### 坐标系树
-
-```
 map
    └── oakd_imu_link (融合 IMU 确定的姿态)
          └── oakd_camera_optical_frame (相机光学中心, 可选)
-```
 
-### 坐标系说明
 
 - **map**：全局世界坐标系（由 `imu_fusion` 定义为参考）；
 - **oakd_imu_link**：IMU 经融合后的坐标系，包含 orientation，是 `imu_tf_broadcaster` 的默认 child frame；
@@ -250,7 +227,7 @@ map
 
 ## 使用方式：提前建图 vs 不提前建图
 
-当前仓库的导航栈以 `nav_mapping` 的实时点云建图为核心，默认工作方式是“在线生成局部占用栅格”。
+当前仓库的导航栈以 `nav_mapping` 的实时点云建图为核心，默认工作方式是“在线生成局部占用栅格”，且默认订阅 `/oakd/points_filtered`。
 
 ### 1. 提前建图
 
@@ -262,7 +239,7 @@ map
 
 使用方式：
 
-1. 先在地面或仿真环境中启动完整系统，确认 `/oakd/points`、`/local_map/occupancy`、`/nav/cmd_vel` 全部正常；
+1. 先在地面或仿真环境中启动完整系统，确认 `/oakd/points_filtered`、`/local_map/occupancy`、`/nav/cmd_vel` 全部正常，同时可对照 `/oakd/points`；
 2. 通过 `ros2 topic echo /local_map/occupancy` 和 `ros2 topic hz /local_map/occupancy` 检查地图是否稳定；
 3. 确认 TF 树完整，尤其是 `camera_depth_optical_frame → map` 这条链路；
 4. 再进入规划和执行验证。
@@ -283,8 +260,8 @@ map
 使用方式：
 
 1. 直接启动 `ros2 launch uav_bringup nav_stack.launch.py`；
-2. 由 OAK-D 实时发布 `/oakd/points`；
-3. `nav_mapping` 在线生成 `/local_map/occupancy`；
+2. 由 OAK-D 实时发布 `/oakd/points` 与 `/oakd/points_filtered`；
+3. `nav_mapping` 默认订阅 `/oakd/points_filtered`，在线生成 `/local_map/occupancy`；
 4. `nav_planning` 基于当前局部地图输出 `/nav/cmd_vel`；
 5. `nav_safety` 持续监视点云异常并在必要时发布 `/nav/emergency`。
 
@@ -304,7 +281,7 @@ map
 
 #### 提前建图模式
 
-1. 启动感知与融合：确认 `/oakd/imu/raw`、`/oakd/points` 和 `/tf` 正常。
+1. 启动感知与融合：确认 `/oakd/imu/raw`、`/oakd/points_filtered` 和 `/tf` 正常，同时保留 `/oakd/points` 供调试使用。
 2. 启动导航栈：运行 `ros2 launch uav_bringup nav_stack.launch.py`。
 3. 检查地图：确认 `/local_map/occupancy` 持续更新，且 `frame_id` 为 `map`。
 4. 检查规划：确认 `/nav/cmd_vel` 有输出，并在障碍靠近时会变化。
@@ -313,10 +290,10 @@ map
 #### 不提前建图模式
 
 1. 直接启动整栈，不额外加载地图文件。
-2. 保持 OAK-D 在线发布点云，让 `nav_mapping` 实时生成局部地图。
+2. 保持 OAK-D 在线发布点云，让 `nav_mapping` 基于 `/oakd/points_filtered` 实时生成局部地图。
 3. 观察规划输出是否随当前环境变化，而不是固定前向速度。
 4. 在环境变化、点云短暂中断或 TF 缺失时，确认系统进入安全降级。
-5. 如果需要复现实验，优先记录 `/oakd/points`、`/local_map/occupancy`、`/nav/cmd_vel` 和 `/nav/emergency` 的数据流。
+5. 如果需要复现实验，优先记录 `/oakd/points_filtered`、`/oakd/points`、`/local_map/occupancy`、`/nav/cmd_vel` 和 `/nav/emergency` 的数据流。
 
 ---
 
@@ -360,7 +337,7 @@ Error: X_LINK_DEVICE_ALREADY_IN_USE
 
 ### 深度无输出
 
-- 检查 `/oakd/points` 话题频率：`ros2 topic hz /oakd/points`
+- 检查 `/oakd/points_filtered` 话题频率：`ros2 topic hz /oakd/points_filtered`
 - 调整深度范围：`min_depth`、`max_depth`
 - 尝试启用主动立体：`enable_active_stereo:=true`
 
@@ -380,19 +357,10 @@ Error: X_LINK_DEVICE_ALREADY_IN_USE
 - [DepthAI 官方文档](https://docs.luxonis.com/)
 - [ROS 2 官方文档](https://docs.ros.org/en/humble/)
 
----
-
-## 版本历史
 
 - **v1.0** (2026-05)：统一节点架构首次实现，解决设备冲突问题。
-
----
-
 # 导航栈架构设计（v2.0）
 
-**版本**: 2.0 (功能包拆分)
-**日期**: 2026-05-15
-**状态**: ✅ 已验证
 
 ## 概述
 
@@ -404,7 +372,7 @@ Error: X_LINK_DEVICE_ALREADY_IN_USE
 src/
 ├── nav_mapping/        # 新: PointCloud2 → OccupancyGrid
 │   └── local_map_builder.py (170 行)
-│       - 订阅: /oakd/points, /tf
+│       - 订阅: /oakd/points_filtered, /tf
 │       - 发布: /local_map/occupancy
 │       - TF 变换启用 (camera_depth_optical_frame → map)
 │
@@ -444,7 +412,7 @@ src/
 ```
 ┌──────────────────────────────────┐
 │ 1. 传感器输入                    │
-│ /oakd/points (PointCloud2)      │
+│ /oakd/points_filtered (PointCloud2) │
 └───────────┬──────────────────────┘
             │
     ┌───────┴────────┐

@@ -49,7 +49,8 @@ source install/setup.bash
 - Fixed Frame 设为 `map`；
 - 添加 `Map` 显示；
 - Topic 选择 `/local_map/occupancy`；
-- 如果同时看点云，可再添加 `/oakd/points` 的 `PointCloud2`。
+- 如果同时看点云，可再添加 `/oakd/points_filtered` 的 `PointCloud2`。
+- 如需对比原始数据，可另外添加 `/oakd/points`。
 
 **预期输出**:
 ```yaml
@@ -72,7 +73,7 @@ twist:
 ### 启动的 4 个节点
 
 1. **local_map_builder** (`nav_mapping`)
-   - 输入: `/oakd/points` (点云)
+   - 输入: `/oakd/points_filtered` (点云)
    - 输出: `/local_map/occupancy` (占用栅栏)
    - 职责: 3D 点云 → 2D 地图
 
@@ -257,12 +258,12 @@ ros2 topic delay /nav/cmd_vel
 ### 问题 2: 话题无数据流动
 
 ```bash
-ros2 topic hz /oakd/points
-# 输出: Topic /oakd/points does not have any publishers yet
+ros2 topic hz /oakd/points_filtered
+# 输出: Topic /oakd/points_filtered does not have any publishers yet
 ```
 
 **原因**: 需要 OAK-D 硬件或仿真器
-**解决**: 启动 OAK-D 节点或使用测试发布器
+**解决**: 启动 OAK-D 节点或使用测试发布器；如果想检查原始点云，可改看 `/oakd/points`
 ```bash
 python3 /tmp/test_nav_flow.py
 ```

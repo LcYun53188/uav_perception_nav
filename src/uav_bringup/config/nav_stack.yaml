@@ -1,6 +1,7 @@
 local_map_builder:
   ros__parameters:
     frame_id: map
+    pointcloud_topic: /oakd/points_filtered
     resolution: 0.5
     width: 40
     height: 40

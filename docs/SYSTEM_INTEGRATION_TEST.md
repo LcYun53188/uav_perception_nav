@@ -52,7 +52,7 @@ ros2 launch uav_bringup nav_stack.launch.py
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ 1. 传感器输入层                                          │
-│  Topic: /oakd/points (sensor_msgs/msg/PointCloud2)     │
+│  Topic: /oakd/points_filtered (sensor_msgs/msg/PointCloud2) │
 │  发布者: 0 (测试模式下无硬件)                           │
 │  订阅者: 2 (local_map_builder, safety_monitor)          │
 └──────────────┬──────────────────────────────────────────┘
@@ -92,7 +92,8 @@ ros2 launch uav_bringup nav_stack.launch.py
 
 | 话题名 | 消息类型 | 发布者 | 订阅者数 | 数据流 | 验证 |
 |--------|---------|--------|----------|--------|------|
-| `/oakd/points` | PointCloud2 | 0 | 2 | 连接就绪 | ✅ |
+| `/oakd/points_filtered` | PointCloud2 | 0 | 1 | 连接就绪 | ✅ |
+| `/oakd/points` | PointCloud2 | 0 | 1 | 连接就绪 | ✅ |
 | `/local_map/occupancy` | OccupancyGrid | 1 | 1 | **活跃** | ✅ |
 | `/nav/cmd_vel` | TwistStamped | 1 | 1 | **活跃** | ✅ |
 | `/nav/emergency` | Bool | 1 | 1 | **活跃** | ✅ |
@@ -159,7 +160,7 @@ data: false  # 正常操作
 ### 5.1 local_map_builder 接口
 ```
 订阅:
-  - /oakd/points (sensor_msgs/msg/PointCloud2)
+  - /oakd/points_filtered (sensor_msgs/msg/PointCloud2)
   - /tf (tf2_msgs/msg/TFMessage)
   - /tf_static (tf2_msgs/msg/TFMessage)
 发布:
@@ -279,7 +280,7 @@ ros2 run nav_local px4_offboard_ctrl       # ✅ 转发到 nav_px4_bridge
 
 ### 9.2 缺少真实传感器/仿真器
 - **状态**: ℹ️ 环境相关
-- **影响**: `/oakd/points` 无发布者（测试中未使用）
+- **影响**: `/oakd/points_filtered` 无发布者（测试中未使用）；原始 `/oakd/points` 仍可作为调试输入
 - **解决方案**: 测试发布器已验证数据流管道
 
 ### 9.3 原型规划策略

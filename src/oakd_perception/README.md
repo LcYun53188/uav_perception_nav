@@ -93,6 +93,7 @@
 **默认输出：**
 - `/oakd/imu/raw`（`sensor_msgs/Imu`）
 - `/oakd/points`（`sensor_msgs/PointCloud2`）
+- `/oakd/points_filtered`（`sensor_msgs/PointCloud2`，边界裁剪后）
 
 **常用参数（详见 [DEPTH_MODE_CONFIG.md](DEPTH_MODE_CONFIG.md)）：**
 - `imu_frequency` — IMU采样频率（默认 400Hz）
@@ -103,6 +104,13 @@
 - `sampling_step` — 降采样步长（默认 2）
 - `min_depth` — 最小深度（默认 200mm）
 - `max_depth` — 最大深度（默认 5000mm）
+- `enable_fov_boundary_filter` — 是否启用四棱锥边界过滤（默认 true）
+- `auto_estimate_fov` — 是否根据相机内参自动估计 FOV（默认 true）
+- `fov_h_deg` / `fov_v_deg` — 手动 FOV 兜底值（默认 72.0 / 53.0）
+- `fov_boundary_margin_m` — 边界安全带宽（米，默认 0.15）
+
+**说明：** 点云在发布前会先按四棱锥侧面平面做边界裁剪；如果启用 `auto_estimate_fov`，则会基于相机内参自动得到水平/垂直 FOV，不需要手工填角度。
+**补充：** 原始点云仍发布到 `/oakd/points`，过滤结果发布到 `/oakd/points_filtered`，方便下游按需选择。
 
 **启动命令：**
 ```bash

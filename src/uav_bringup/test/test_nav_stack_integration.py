@@ -70,7 +70,7 @@ class TestNavStackIntegration(unittest.TestCase):
         self.node.destroy_node()
 
     def test_pipeline_flow(self):
-        pc_pub = self.node.create_publisher(PointCloud2, '/oakd/points', 10)
+        pc_pub = self.node.create_publisher(PointCloud2, '/oakd/points_filtered', 10)
 
         map_received = []
         self.node.create_subscription(

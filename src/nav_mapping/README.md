@@ -2,7 +2,7 @@
 
 点云到局部占据栅格的处理包。
 
-- 订阅: `/oakd/points`
+- 订阅: `/oakd/points_filtered`（默认，可通过参数 `pointcloud_topic` 覆盖）
 - 发布: `/local_map/occupancy`
 
 参数:

@@ -19,6 +19,7 @@ class LocalMapBuilder(Node):
     def __init__(self):
         super().__init__('local_map_builder')
         self.declare_parameter('frame_id', 'map')
+        self.declare_parameter('pointcloud_topic', '/oakd/points_filtered')
         self.declare_parameter('resolution', 0.5)
         self.declare_parameter('width', 40)
         self.declare_parameter('height', 40)
@@ -28,8 +29,12 @@ class LocalMapBuilder(Node):
         self.declare_parameter('publish_rate', 1.0)
         self.declare_parameter('transform_timeout_sec', 0.2)
 
+        pointcloud_topic = self.get_parameter('pointcloud_topic').value
+
         self.pub = self.create_publisher(OccupancyGrid, '/local_map/occupancy', 10)
-        self.sub = self.create_subscription(PointCloud2, '/oakd/points', self.pc_callback, 10)
+        self.sub = self.create_subscription(
+            PointCloud2, pointcloud_topic, self.pc_callback, 10
+        )
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
@@ -37,7 +42,9 @@ class LocalMapBuilder(Node):
         self.timer = self.create_timer(max(0.01, 1.0 / rate), self.publish_map)
         self.last_pc = None
 
-        self.get_logger().info('nav_mapping/local_map_builder started')
+        self.get_logger().info(
+            f'nav_mapping/local_map_builder started, subscribing to {pointcloud_topic}'
+        )
 
     def pc_callback(self, msg: PointCloud2):
         self.last_pc = msg

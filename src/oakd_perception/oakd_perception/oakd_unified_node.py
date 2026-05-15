@@ -8,6 +8,11 @@ from rclpy.node import Node
 from sensor_msgs.msg import Imu, PointCloud2
 from std_msgs.msg import Header
 
+from oakd_perception.fov_boundary_filter import (
+    FOVBoundaryFilter,
+    estimate_fov_from_intrinsics,
+)
+
 
 class OakDUnifiedNode(Node):
     """Unified OAK-D node for IMU and depth data."""
@@ -31,10 +36,16 @@ class OakDUnifiedNode(Node):
         # ============ 点云过滤参数配置 ============
         self.declare_parameter("pointcloud_frequency", 20)
         self.declare_parameter("pointcloud_topic", "/oakd/points")
+        self.declare_parameter("filtered_pointcloud_topic", "/oakd/points_filtered")
         self.declare_parameter("pointcloud_frame_id", "oakd_imu_link")
         self.declare_parameter("sampling_step", 2)
         self.declare_parameter("min_depth", 200)
         self.declare_parameter("max_depth", 5000)
+        self.declare_parameter("enable_fov_boundary_filter", True)
+        self.declare_parameter("auto_estimate_fov", True)
+        self.declare_parameter("fov_h_deg", 72.0)
+        self.declare_parameter("fov_v_deg", 53.0)
+        self.declare_parameter("fov_boundary_margin_m", 0.15)
 
         # 获取IMU参数
         self.imu_frequency = self.get_parameter("imu_frequency").value
@@ -51,14 +62,29 @@ class OakDUnifiedNode(Node):
         # 获取点云参数
         self.pointcloud_frequency = self.get_parameter("pointcloud_frequency").value
         self.pointcloud_topic = self.get_parameter("pointcloud_topic").value
+        self.filtered_pointcloud_topic = self.get_parameter(
+            "filtered_pointcloud_topic"
+        ).value
         self.pointcloud_frame_id = self.get_parameter("pointcloud_frame_id").value
         self.sampling_step = self.get_parameter("sampling_step").value
         self.min_depth = self.get_parameter("min_depth").value
         self.max_depth = self.get_parameter("max_depth").value
+        self.enable_fov_boundary_filter = self.get_parameter(
+            "enable_fov_boundary_filter"
+        ).value
+        self.auto_estimate_fov = self.get_parameter("auto_estimate_fov").value
+        self.fov_h_deg = self.get_parameter("fov_h_deg").value
+        self.fov_v_deg = self.get_parameter("fov_v_deg").value
+        self.fov_boundary_margin_m = self.get_parameter(
+            "fov_boundary_margin_m"
+        ).value
 
         # 发布器
         self.imu_pub = self.create_publisher(Imu, self.imu_topic_name, 10)
         self.pc_pub = self.create_publisher(PointCloud2, self.pointcloud_topic, 10)
+        self.filtered_pc_pub = self.create_publisher(
+            PointCloud2, self.filtered_pointcloud_topic, 10
+        )
 
         # 内部状态
         self.imu_queue = None
@@ -79,6 +105,7 @@ class OakDUnifiedNode(Node):
 
         # 获取相机标定信息
         self.setup_calibration()
+        self.setup_fov_boundary_filter()
 
         # 日志信息
         self.get_logger().info(
@@ -95,6 +122,27 @@ class OakDUnifiedNode(Node):
         # 点云定时器：低频 (20Hz -> 50ms)
         pc_period = 1.0 / self.pointcloud_frequency
         self.pc_timer = self.create_timer(pc_period, self.publish_pointcloud)
+
+    def setup_fov_boundary_filter(self):
+        """Configure the frustum boundary filter for point cloud publishing."""
+        if self.auto_estimate_fov:
+            self.fov_h_deg, self.fov_v_deg = estimate_fov_from_intrinsics(
+                self.fx, self.fy, 640, 400
+            )
+
+        self.fov_filter = FOVBoundaryFilter(
+            fov_h=float(self.fov_h_deg),
+            fov_v=float(self.fov_v_deg),
+            margin=float(self.fov_boundary_margin_m),
+        )
+
+        self.get_logger().info(
+            "FOV边界过滤已配置: "
+            f"enabled={self.enable_fov_boundary_filter}, "
+            f"auto_estimate_fov={self.auto_estimate_fov}, "
+            f"fov_h={self.fov_h_deg:.2f}deg, fov_v={self.fov_v_deg:.2f}deg, "
+            f"margin={self.fov_boundary_margin_m:.3f}m"
+        )
 
     def setup_pipeline(self):
         """Configure the DAI pipeline for IMU and depth."""
@@ -293,8 +341,17 @@ class OakDUnifiedNode(Node):
             header.stamp = self.get_clock().now().to_msg()
             header.frame_id = self.pointcloud_frame_id
 
-            pc_msg = pc2.create_cloud_xyz32(header, points)
-            self.pc_pub.publish(pc_msg)
+            raw_pc_msg = pc2.create_cloud_xyz32(header, points)
+            self.pc_pub.publish(raw_pc_msg)
+
+            filtered_points = points
+            if self.enable_fov_boundary_filter and len(points) > 0:
+                filtered_points = self.fov_filter.filter_frustum_boundary(
+                    points, margin=self.fov_boundary_margin_m
+                )
+
+            filtered_pc_msg = pc2.create_cloud_xyz32(header, filtered_points)
+            self.filtered_pc_pub.publish(filtered_pc_msg)
         except Exception as e:
             self.get_logger().warn(f"点云发布失败: {e}")
 

@@ -27,8 +27,24 @@ def launch_setup(context, *args, **kwargs):
         "sampling_step": int(LaunchConfiguration("sampling_step").perform(context)),
         "min_depth": int(LaunchConfiguration("min_depth").perform(context)),
         "max_depth": int(LaunchConfiguration("max_depth").perform(context)),
+        "enable_fov_boundary_filter": LaunchConfiguration(
+            "enable_fov_boundary_filter"
+        ).perform(context)
+        == "true",
+        "auto_estimate_fov": LaunchConfiguration("auto_estimate_fov").perform(
+            context
+        )
+        == "true",
+        "fov_h_deg": float(LaunchConfiguration("fov_h_deg").perform(context)),
+        "fov_v_deg": float(LaunchConfiguration("fov_v_deg").perform(context)),
+        "fov_boundary_margin_m": float(
+            LaunchConfiguration("fov_boundary_margin_m").perform(context)
+        ),
         "imu_topic_name": LaunchConfiguration("imu_topic").perform(context),
         "pointcloud_topic": LaunchConfiguration("pointcloud_topic").perform(context),
+        "filtered_pointcloud_topic": LaunchConfiguration(
+            "filtered_pointcloud_topic"
+        ).perform(context),
         "imu_frame_id": LaunchConfiguration("imu_frame_id").perform(context),
         "pointcloud_frame_id": LaunchConfiguration("pointcloud_frame_id").perform(
             context
@@ -87,8 +103,20 @@ def generate_launch_description():
             DeclareLaunchArgument("sampling_step", default_value="2"),
             DeclareLaunchArgument("min_depth", default_value="200"),
             DeclareLaunchArgument("max_depth", default_value="5000"),
+            DeclareLaunchArgument(
+                "enable_fov_boundary_filter", default_value="true"
+            ),
+            DeclareLaunchArgument("auto_estimate_fov", default_value="true"),
+            DeclareLaunchArgument("fov_h_deg", default_value="72.0"),
+            DeclareLaunchArgument("fov_v_deg", default_value="53.0"),
+            DeclareLaunchArgument(
+                "fov_boundary_margin_m", default_value="0.15"
+            ),
             DeclareLaunchArgument("imu_topic", default_value="/oakd/imu/raw"),
             DeclareLaunchArgument("pointcloud_topic", default_value="/oakd/points"),
+            DeclareLaunchArgument(
+                "filtered_pointcloud_topic", default_value="/oakd/points_filtered"
+            ),
             DeclareLaunchArgument("imu_frame_id", default_value="oakd_imu_link"),
             DeclareLaunchArgument(
                 "pointcloud_frame_id", default_value="oakd_camera_optical_frame"

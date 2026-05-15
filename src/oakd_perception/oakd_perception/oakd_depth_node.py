@@ -1,3 +1,32 @@
+"""Standalone OAK-D point cloud node.
+
+Quick RViz check for the filtered point cloud:
+
+1. Source the workspace:
+    source install/setup.bash
+2. Start the standalone node:
+    ros2 run oakd_perception oakd_depth_node
+3. Open RViz:
+    rviz2
+4. Set Fixed Frame to `oakd_imu_link`.
+5. Add a PointCloud2 display and set Topic to `/oakd/points_filtered`.
+6. Optionally add another PointCloud2 display for `/oakd/points` to compare
+    raw and filtered results.
+
+The node publishes both raw and filtered clouds; the filtered topic is the
+recommended one for visualization and downstream consumption.
+
+
+source install/setup.bash
+ros2 run oakd_perception oakd_depth_node
+打开 rviz2
+Fixed Frame 设为 oakd_imu_link
+点云话题设为 /oakd/points_filtered
+也可以额外看 /oakd/points 对比原始结果
+
+
+"""
+
 import depthai as dai
 import numpy as np
 import rclpy
@@ -5,6 +34,11 @@ import sensor_msgs_py.point_cloud2 as pc2
 from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import Header
+
+from oakd_perception.fov_boundary_filter import (
+    FOVBoundaryFilter,
+    estimate_fov_from_intrinsics,
+)
 
 
 class OakDPointCloudNode(Node):
@@ -20,6 +54,12 @@ class OakDPointCloudNode(Node):
         self.declare_parameter("sampling_step", 2)  # 采样间隔
         self.declare_parameter("min_depth", 200)  # 最小深度(mm)
         self.declare_parameter("max_depth", 5000)  # 最大深度(mm)
+        self.declare_parameter("filtered_pointcloud_topic", "/oakd/points_filtered")
+        self.declare_parameter("enable_fov_boundary_filter", True)
+        self.declare_parameter("auto_estimate_fov", True)
+        self.declare_parameter("fov_h_deg", 72.0)
+        self.declare_parameter("fov_v_deg", 53.0)
+        self.declare_parameter("fov_boundary_margin_m", 0.15)
 
         self.enable_passive_stereo = self.get_parameter("enable_passive_stereo").value
         self.enable_active_stereo = self.get_parameter("enable_active_stereo").value
@@ -27,6 +67,18 @@ class OakDPointCloudNode(Node):
         self.sampling_step = self.get_parameter("sampling_step").value
         self.min_depth = self.get_parameter("min_depth").value
         self.max_depth = self.get_parameter("max_depth").value
+        self.filtered_pointcloud_topic = self.get_parameter(
+            "filtered_pointcloud_topic"
+        ).value
+        self.enable_fov_boundary_filter = self.get_parameter(
+            "enable_fov_boundary_filter"
+        ).value
+        self.auto_estimate_fov = self.get_parameter("auto_estimate_fov").value
+        self.fov_h_deg = self.get_parameter("fov_h_deg").value
+        self.fov_v_deg = self.get_parameter("fov_v_deg").value
+        self.fov_boundary_margin_m = self.get_parameter(
+            "fov_boundary_margin_m"
+        ).value
 
         self.get_logger().info(
             f"Passive Stereo: {'ON' if self.enable_passive_stereo else 'OFF'}"
@@ -38,6 +90,9 @@ class OakDPointCloudNode(Node):
             self.get_logger().info(f"IR Intensity: {self.ir_intensity}")
 
         self.pc_pub = self.create_publisher(PointCloud2, "/oakd/points", 10)
+        self.filtered_pc_pub = self.create_publisher(
+            PointCloud2, self.filtered_pointcloud_topic, 10
+        )
         self.pipeline = dai.Pipeline()
         self.setup_pipeline()
         self.pipeline.start()
@@ -66,6 +121,8 @@ class OakDPointCloudNode(Node):
                 "DepthAI calibration API unavailable, using fallback intrinsics."
             )
 
+        self.setup_fov_boundary_filter()
+
         mode_info = []
         if self.enable_passive_stereo:
             mode_info.append("被动立体")
@@ -77,6 +134,27 @@ class OakDPointCloudNode(Node):
             f"OAK-D 点云驱动节点已启动 [深度模式: {mode_str}]，正在发布点云..."
         )
         self.timer = self.create_timer(0.05, self.publish_pointcloud)
+
+    def setup_fov_boundary_filter(self):
+        """Configure the frustum boundary filter for point cloud publishing."""
+        if self.auto_estimate_fov:
+            self.fov_h_deg, self.fov_v_deg = estimate_fov_from_intrinsics(
+                self.fx, self.fy, 640, 400
+            )
+
+        self.fov_filter = FOVBoundaryFilter(
+            fov_h=float(self.fov_h_deg),
+            fov_v=float(self.fov_v_deg),
+            margin=float(self.fov_boundary_margin_m),
+        )
+
+        self.get_logger().info(
+            "FOV边界过滤已配置: "
+            f"enabled={self.enable_fov_boundary_filter}, "
+            f"auto_estimate_fov={self.auto_estimate_fov}, "
+            f"fov_h={self.fov_h_deg:.2f}deg, fov_v={self.fov_v_deg:.2f}deg, "
+            f"margin={self.fov_boundary_margin_m:.3f}m"
+        )
 
     def setup_pipeline(self):
         monoLeft = self.pipeline.create(dai.node.MonoCamera)
@@ -177,8 +255,17 @@ class OakDPointCloudNode(Node):
         header.stamp = self.get_clock().now().to_msg()
         header.frame_id = "oakd_imu_link"
 
-        pc_msg = pc2.create_cloud_xyz32(header, points)
-        self.pc_pub.publish(pc_msg)
+        raw_pc_msg = pc2.create_cloud_xyz32(header, points)
+        self.pc_pub.publish(raw_pc_msg)
+
+        filtered_points = points
+        if self.enable_fov_boundary_filter and len(points) > 0:
+            filtered_points = self.fov_filter.filter_frustum_boundary(
+                points, margin=self.fov_boundary_margin_m
+            )
+
+        filtered_pc_msg = pc2.create_cloud_xyz32(header, filtered_points)
+        self.filtered_pc_pub.publish(filtered_pc_msg)
 
 
 def main(args=None):
