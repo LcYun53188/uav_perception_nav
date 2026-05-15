@@ -1,0 +1,21 @@
+local_map_builder:
+  ros__parameters:
+    frame_id: map
+    resolution: 0.5
+    width: 40
+    height: 40
+    min_z: -1.0
+    max_z: 2.0
+    inflation_radius: 0.5
+    publish_rate: 1.0
+
+local_planner:
+  ros__parameters:
+    forward_speed: 0.5
+
+safety_monitor:
+  ros__parameters:
+    min_points_threshold: 10
+
+px4_offboard_ctrl:
+  ros__parameters: {}

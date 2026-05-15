@@ -315,3 +315,185 @@ Error: X_LINK_DEVICE_ALREADY_IN_USE
 ## 版本历史
 
 - **v1.0** (2026-05)：统一节点架构首次实现，解决设备冲突问题。
+
+---
+
+# 导航栈架构设计（v2.0）
+
+**版本**: 2.0 (功能包拆分)
+**日期**: 2026-05-15
+**状态**: ✅ 已验证
+
+## 概述
+
+导航栈从单个 `nav_local` 功能包拆分为 6 个专职功能包，遵循单一职责原则，提高模块独立性、可测试性和可维护性。
+
+## 函数包体系
+
+```
+src/
+├── nav_mapping/        # 新: PointCloud2 → OccupancyGrid
+│   └── local_map_builder.py (170 行)
+│       - 订阅: /oakd/points, /tf
+│       - 发布: /local_map/occupancy
+│       - TF 变换启用 (camera_depth_optical_frame → map)
+│
+├── nav_planning/       # 新: OccupancyGrid → velocity commands
+│   └── local_planner.py (80 行)
+│       - 订阅: /local_map/occupancy
+│       - 发布: /nav/cmd_vel
+│       - 规则: 中心自由则前进
+│
+├── nav_safety/         # 新: PointCloud2 → emergency signal
+│   └── safety_monitor.py (90 行)
+│       - 订阅: /oakd/points
+│       - 发布: /nav/emergency
+│       - 监视: 点数阈值故障检测
+│
+├── nav_px4_bridge/     # 新: velocity + emergency → PX4 msgs
+│   └── px4_offboard_ctrl.py (170 行)
+│       - 订阅: /nav/cmd_vel, /nav/emergency
+│       - 发布: /fmu/in/* (px4_msgs，条件可用)
+│       - 转换: ENU → NED 坐标系
+│       - 降级: px4_msgs 不可用时安全禁用
+│
+├── nav_local/          # 改: 兼容层 + 转发
+│   ├── local_map_builder.py       (→ nav_mapping)
+│   ├── local_planner.py           (→ nav_planning)
+│   ├── safety_monitor.py          (→ nav_safety)
+│   └── px4_offboard_ctrl.py       (→ nav_px4_bridge)
+│
+└── uav_bringup/        # 新: 中央 launch + 参数管理
+    ├── launch/nav_stack.launch.py
+    ├── config/nav_stack.yaml
+    └── rviz/nav_stack.rviz
+```
+
+## 导航数据流管道
+
+```
+┌──────────────────────────────────┐
+│ 1. 传感器输入                    │
+│ /oakd/points (PointCloud2)      │
+└───────────┬──────────────────────┘
+            │
+    ┌───────┴────────┐
+    │                │
+    ▼                ▼
+┌────────────────┐ ┌──────────────┐
+│ local_map_builder │ safety_monitor │
+│ (nav_mapping)   │ (nav_safety)   │
+└────────┬────────┘ └────────┬──────┘
+         │                   │
+         │ /local_map/           │ /nav/emergency
+         │ /occupancy (OccupancyGrid) (Bool)
+         ▼
+    ┌────────────────┐
+    │ local_planner  │
+    │ (nav_planning) │
+    └────────┬───────┘
+             │
+             │ /nav/cmd_vel
+             ▼
+    ┌────────────────────────┐
+    │ px4_offboard_ctrl      │
+    │ (nav_px4_bridge)       │
+    └────────┬───────────────┘
+             │
+             ▼ /fmu/in/*
+    [PX4 Autopilot]
+             │
+             ▼
+    飞行控制
+```
+
+## 参数管理
+
+集中配置文件：`config/nav_stack.yaml`
+
+```yaml
+local_map_builder:
+  ros__parameters:
+    frame_id: map
+    resolution: 0.5
+    width: 40
+    height: 40
+    min_z: -1.0
+    max_z: 2.0
+    inflation_radius: 0.5
+    publish_rate: 1.0
+    transform_timeout_sec: 1.0
+
+local_planner:
+  ros__parameters:
+    forward_speed: 0.5
+
+safety_monitor:
+  ros__parameters:
+    min_points_threshold: 10
+
+px4_offboard_ctrl:
+  ros__parameters:
+    control_rate_hz: 20
+    auto_arm: true
+    emergency_action: LAND
+```
+
+## 启动命令
+
+### 完整系统
+
+```bash
+ros2 launch uav_bringup nav_stack.launch.py
+```
+
+### 单个节点（开发/调试）
+
+```bash
+# 旧方式（兼容）
+ros2 run nav_local local_map_builder
+
+# 新方式（推荐）
+ros2 run nav_mapping local_map_builder
+```
+
+### 带参数覆盖
+
+```bash
+ros2 launch uav_bringup nav_stack.launch.py \
+  forward_speed:=1.0 \
+  min_points_threshold:=20
+```
+
+## 验证状态
+
+✅ **系统集成验证通过** (2026-05-15)
+
+| 项目 | 状态 | 备注 |
+|------|------|------|
+| 构建验证 | ✅ PASS | 6 个包，0 编译错误 |
+| 节点启动 | ✅ PASS | 4/4 节点正常运行 |
+| 数据流管道 | ✅ PASS | 5 主话题活跃数据 |
+| 消息格式 | ✅ PASS | OccupancyGrid, TwistStamped, Bool |
+| 向后兼容 | ✅ PASS | nav_local 转发工作 |
+| 参数管理 | ✅ PASS | 中央 YAML 配置加载 |
+| 降级模式 | ✅ PASS | px4_msgs 可选，安全禁用 |
+
+详见 [SYSTEM_INTEGRATION_TEST.md](./SYSTEM_INTEGRATION_TEST.md)
+
+## 改进路线图
+
+### 短期 (Week 1)
+- [ ] 修复 px4_msgs Rust 生成器，启用真实 PX4 通信
+- [ ] 编写综合测试套件 (pytest + ROS2 launch tests)
+- [ ] 文档化完整参数表和对接接口
+
+### 中期 (Week 2-3)
+- [ ] 升级安全层：超时监控、地图有效性、故障级联
+- [ ] 集成本地规划器 (DWA/DWB) 替换原型
+- [ ] 与 PX4 SITL 仿真器集成
+
+### 长期 (Week 4+)
+- [ ] 硬件验收测试 (PX4 实飞)
+- [ ] 性能基准与优化
+- [ ] 生产就绪文档

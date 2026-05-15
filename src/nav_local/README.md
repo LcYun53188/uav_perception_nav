@@ -1,18 +1,16 @@
 # nav_local
 
-本包为 `nav` 本地导航原型骨架，包含以下 ROS2 节点：
+本包已降级为兼容层，原先的本地导航节点已拆分到独立功能包：
 
-- `local_map_builder`：从 `/oakd/points` 生成局部 2D 占据栅格（原型）
-- `local_planner`：基于局部栅格生成短期速度命令 `/nav/cmd_vel`
-- `px4_offboard_ctrl`：接收 `/nav/cmd_vel` 并转发到 PX4（stub）
-- `safety_monitor`：简单传感器/近障检测，发布 `/nav/emergency`
+- `nav_mapping`：点云处理与局部栅格生成
+- `nav_planning`：局部规划与速度决策
+- `nav_px4_bridge`：PX4 Offboard 话题桥接
+- `nav_safety`：安全检测与急停
+- `uav_bringup`：统一启动入口
 
-启动示例：
+兼容启动方式仍保留：
 
 ```bash
-# 构建 workspace
-colcon build --packages-select nav_local
-
-# 启动本地导航原型
+colcon build --packages-select nav_local nav_mapping nav_planning nav_px4_bridge nav_safety uav_bringup
 ros2 launch nav_local nav_local.launch.py
 ```

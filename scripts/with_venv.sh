@@ -12,6 +12,12 @@ fi
 # Ensure project virtualenv Python is first on PATH.
 source .venv/bin/activate
 
+# Make the virtualenv site-packages visible to ROS helper scripts that may run
+# under the system Python during code generation.
+VENV_SITE_PACKAGES="$VIRTUAL_ENV/lib/python$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')/site-packages"
+LOCAL_DEPS="$WS_DIR/.deps"
+export PYTHONPATH="$LOCAL_DEPS:$VENV_SITE_PACKAGES${PYTHONPATH:+:$PYTHONPATH}"
+
 if [ -f /opt/ros/jazzy/setup.bash ]; then
   source /opt/ros/jazzy/setup.bash
 elif [ -f /opt/ros/humble/setup.bash ]; then

@@ -3,11 +3,18 @@
 <package format="3">
   <name>uav_bringup</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Bringup package for split navigation stack.</description>
   <maintainer email="root@todo.todo">root</maintainer>
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>launch</depend>
+  <depend>launch_ros</depend>
+  <depend>nav_mapping</depend>
+  <depend>nav_planning</depend>
+  <depend>nav_px4_bridge</depend>
+  <depend>nav_safety</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
