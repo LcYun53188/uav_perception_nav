@@ -5,7 +5,7 @@ import numpy as np
 import rclpy
 import sensor_msgs_py.point_cloud2 as pc2
 from rclpy.node import Node
-from sensor_msgs.msg import Imu, PointCloud2
+from sensor_msgs.msg import Imu, PointCloud2, Image
 from std_msgs.msg import Header
 
 from oakd_perception.fov_boundary_filter import (
@@ -46,6 +46,12 @@ class OakDUnifiedNode(Node):
         self.declare_parameter("fov_h_deg", 72.0)
         self.declare_parameter("fov_v_deg", 53.0)
         self.declare_parameter("fov_boundary_margin_m", 0.15)
+        
+        # ============ 图像输出配置 ============
+        self.declare_parameter("enable_image_publish", True)
+        self.declare_parameter("left_image_topic", "/oakd/left/image_raw")
+        self.declare_parameter("right_image_topic", "/oakd/right/image_raw")
+        self.declare_parameter("image_frequency", 30)
 
         # 获取IMU参数
         self.imu_frequency = self.get_parameter("imu_frequency").value
@@ -79,16 +85,27 @@ class OakDUnifiedNode(Node):
             "fov_boundary_margin_m"
         ).value
 
+        # 获取图像参数
+        self.enable_image_publish = self.get_parameter("enable_image_publish").value
+        self.left_image_topic = self.get_parameter("left_image_topic").value
+        self.right_image_topic = self.get_parameter("right_image_topic").value
+        self.image_frequency = self.get_parameter("image_frequency").value
+
         # 发布器
         self.imu_pub = self.create_publisher(Imu, self.imu_topic_name, 10)
         self.pc_pub = self.create_publisher(PointCloud2, self.pointcloud_topic, 10)
         self.filtered_pc_pub = self.create_publisher(
             PointCloud2, self.filtered_pointcloud_topic, 10
         )
+        if self.enable_image_publish:
+            self.left_pub = self.create_publisher(Image, self.left_image_topic, 10)
+            self.right_pub = self.create_publisher(Image, self.right_image_topic, 10)
 
         # 内部状态
         self.imu_queue = None
         self.depth_queue = None
+        self.left_queue = None
+        self.right_queue = None
         self.pipeline = dai.Pipeline()
 
         # 设置管道
@@ -122,6 +139,11 @@ class OakDUnifiedNode(Node):
         # 点云定时器：低频 (20Hz -> 50ms)
         pc_period = 1.0 / self.pointcloud_frequency
         self.pc_timer = self.create_timer(pc_period, self.publish_pointcloud)
+
+        # 图像定时器
+        if self.enable_image_publish:
+            image_period = 1.0 / self.image_frequency
+            self.image_timer = self.create_timer(image_period, self.publish_images)
 
     def setup_fov_boundary_filter(self):
         """Configure the frustum boundary filter for point cloud publishing."""
@@ -227,6 +249,11 @@ class OakDUnifiedNode(Node):
 
         monoLeft.out.link(stereo.left)
         monoRight.out.link(stereo.right)
+        
+        if self.enable_image_publish:
+            self.left_queue = monoLeft.out.createOutputQueue()
+            self.right_queue = monoRight.out.createOutputQueue()
+            
         self.depth_queue = stereo.depth.createOutputQueue()
         self.get_logger().info("深度管道配置完成")
 
@@ -354,6 +381,41 @@ class OakDUnifiedNode(Node):
             self.filtered_pc_pub.publish(filtered_pc_msg)
         except Exception as e:
             self.get_logger().warn(f"点云发布失败: {e}")
+
+    def create_image_msg(self, cv_frame, frame_id, stamp):
+        """Convert a cv2 image to a ROS 2 Image message using native numpy conversion."""
+        msg = Image()
+        msg.header.frame_id = frame_id
+        msg.header.stamp = stamp
+        msg.height = cv_frame.shape[0]
+        msg.width = cv_frame.shape[1]
+        msg.encoding = "mono8"
+        msg.is_bigendian = 0
+        msg.step = msg.width
+        msg.data = cv_frame.tobytes()
+        return msg
+
+    def publish_images(self):
+        """Publish left and right stereo images."""
+        if self.left_queue is None or self.right_queue is None:
+            return
+
+        try:
+            inLeft = self.left_queue.tryGet()
+            inRight = self.right_queue.tryGet()
+            
+            if inLeft is not None or inRight is not None:
+                stamp = self.get_clock().now().to_msg()
+                
+                if inLeft is not None:
+                    left_msg = self.create_image_msg(inLeft.getCvFrame(), self.pointcloud_frame_id, stamp)
+                    self.left_pub.publish(left_msg)
+                    
+                if inRight is not None:
+                    right_msg = self.create_image_msg(inRight.getCvFrame(), self.pointcloud_frame_id, stamp)
+                    self.right_pub.publish(right_msg)
+        except Exception as e:
+            self.get_logger().warn(f"图像发布失败: {e}")
 
     def destroy_node(self):
         """Clean up resources before destroying the node."""
