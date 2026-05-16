@@ -19,9 +19,9 @@ def generate_launch_description():
             output='screen',
         ),
         Node(
-            package='nav_px4_bridge',
-            executable='px4_offboard_ctrl',
-            name='px4_offboard_ctrl',
+            package='px4_comm_bridge',
+            executable='px4_bridge_node',
+            name='px4_comm_bridge',
             output='screen',
         ),
         Node(

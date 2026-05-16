@@ -15,7 +15,7 @@
   <depend>std_msgs</depend>
   <exec_depend>nav_mapping</exec_depend>
   <exec_depend>nav_planning</exec_depend>
-  <exec_depend>nav_px4_bridge</exec_depend>
+  <exec_depend>px4_comm_bridge</exec_depend>
   <exec_depend>nav_safety</exec_depend>
 
   <exec_depend>launch</exec_depend>

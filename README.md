@@ -2,6 +2,16 @@
 
 本仓库提供针对 OAK‑D 相机的深度点云与 IMU 采集、融合与可视化工具集，全部以项目虚拟环境 `.venv` 运行为约定。本文档已重构为更清晰的结构：快速上手 → 架构概览 → 安装/构建 → 运行/调试 → 配置/参数 → 可视化 → 测试/回放 → 坐标系/TF → 故障排查 → 项目结构。
 
+## 当前状态
+
+当前仓库的状态是“开发/仿真可用，硬件验收待补齐”：
+
+- OAK-D 统一节点、IMU 融合、TF 广播、局部建图、安全监控、PX4 桥接与启动编排已实现，并通过系统级验证；
+- 导航栈已经形成点云 → 占用栅格 → `/nav/cmd_vel` → 安全监控 → PX4 桥接的完整管道；
+- `local_planner` 仍是基础前向速度策略，不是障碍物感知的成熟局部规划器；
+- `px4_msgs` 为可选依赖，缺失时桥接层会降级运行；
+- 真机飞行验收、障碍物感知规划与 3D 导航主方案仍在后续迭代中。
+
 ---
 
 ## 快速开始 (Quick Start)
@@ -18,24 +28,38 @@ uv pip install --python .venv/bin/python depthai
 source .venv/bin/activate
 ```
 
-2. 构建并启动完整系统：
+2. 构建当前已实现的核心包：
 
 ```bash
-./scripts/with_venv.sh colcon build --packages-select oakd_perception imu_fusion
-./scripts/run_complete_system.sh
+./scripts/with_venv.sh colcon build --packages-select oakd_perception imu_fusion nav_mapping nav_planning nav_safety nav_px4_bridge nav_local uav_bringup px4_msgs
+source install/setup.bash
 ```
 
-3. 打开 RViz：按脚本提示将 `Fixed Frame` 设为 `map`，再添加 `/oakd/points` 的 `PointCloud2` 显示。
+3. 启动对应系统：
+
+- 仅看 OAK-D 感知与 IMU 联动：`./scripts/run_complete_system.sh`
+- 启动导航栈：`ros2 launch uav_bringup nav_stack.launch.py`
+
+4. 打开 RViz：按脚本提示将 `Fixed Frame` 设为 `map`，再添加 `/oakd/points` 或 `/local_map/occupancy` 显示。
 
 ---
 
-## 面向 PX4 的扩展方向
+## 当前完成度与边界
 
-当前仓库已经完成感知与姿态融合底座，下一阶段建议把重点放到 PX4 无人机导航与避障：
+当前仓库不是“只有感知底座”，而是已经形成了可运行的导航管线；但从算法完整性上看，它仍然处于“基础链路完成、规划策略原型化”的阶段。
 
-- 先用 `nav` 方案跑通 PX4 Offboard 和局部避障闭环。
-- 再把点云升级为 3D 体素、ESDF 或局部 3D 地图。
-- 最终让 `3D` 导航成为主方案，`nav` 作为安全降级层。
+已完成：
+
+- OAK-D 统一节点与 IMU / 深度同进程采集；
+- `imu_fusion` 与 TF 广播链路；
+- `nav_mapping`、`nav_planning`、`nav_safety`、`nav_px4_bridge`、`uav_bringup` 的基础集成；
+- 系统级联调与单元/集成测试。
+
+仍需补齐：
+
+- 基于障碍物的真正局部规划器，例如 DWA / DWB；
+- 真机飞行前的完整验收；
+- 更进一步的 3D 地图、ESDF 或体素导航。
 
 详细对比见 [docs/PX4_NAVIGATION_STRATEGY.md](./docs/PX4_NAVIGATION_STRATEGY.md)。
 
@@ -68,9 +92,11 @@ source .venv/bin/activate
 
 - `oakd_perception`：负责 OAK‑D 设备的深度点云与原始 IMU 采集（包含可配置的立体深度参数）；
 - `imu_fusion`：接收原始 IMU，输出融合后的姿态并广播 TF；
+- `nav_mapping`、`nav_planning`、`nav_safety`、`nav_px4_bridge`：提供局部建图、基础规划、安全监控与 PX4 桥接；
+- `uav_bringup`：统一启动编排与中央参数管理；
 - 多个启动脚本与配置预设，便于在室内/户外/黑暗场景间切换。
 
-推荐使用“一体化/统一节点”方案（在单进程中同时管理深度与 IMU），避免设备冲突（X_LINK_DEVICE_ALREADY_IN_USE）。详见后文“统一节点”节与 [UNIFIED_NODE_ARCHITECTURE.md](UNIFIED_NODE_ARCHITECTURE.md)。
+推荐使用“一体化/统一节点”方案（在单进程中同时管理深度与 IMU），避免设备冲突（X_LINK_DEVICE_ALREADY_IN_USE）。详见后文“统一节点”节与 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)。
 
 ---
 
@@ -86,12 +112,15 @@ source .venv/bin/activate
    └─ 深度处理 → /oakd/points    (~20Hz)
 
 上游：/oakd/imu/raw -> imu_fusion -> /imu (融合) -> imu_tf_broadcaster -> TF(map -> oakd_imu_link)
+
+导航链路：/oakd/points_filtered -> /local_map/occupancy -> /nav/cmd_vel -> /nav/emergency -> PX4
 ```
 
 要点：
 - 将 IMU 与深度放在同一进程（统一节点）避免 USB/设备冲突；
 - `imu_fusion` 负责从原始 IMU 出来姿态估计并广播 `map -> oakd_imu_link`；
 - RViz 的 `Fixed Frame` 决定点云是否随 IMU 姿态旋转（`map` 时会跟随 TF）。
+- 导航栈已经打通数据流，但 `local_planner` 仍是基础前向速度策略，尚未达到成熟避障规划器的算法完整度。
 
 ---
 
@@ -109,8 +138,11 @@ uv venv .venv
 # 2. 安装依赖
 uv pip install --python .venv/bin/python -e src/oakd_perception depthai
 
-# 3. 构建
-./scripts/with_venv.sh colcon build --packages-select oakd_perception imu_fusion
+# 3. 构建核心包
+./scripts/with_venv.sh colcon build --packages-select oakd_perception imu_fusion nav_mapping nav_planning nav_safety nav_px4_bridge nav_local uav_bringup px4_msgs
+
+# 4. 激活工作区
+source install/setup.bash
 ```
 
 ### 3.2 完整配置指南
@@ -122,6 +154,26 @@ uv pip install --python .venv/bin/python -e src/oakd_perception depthai
 ## 4. 运行与启动
 
 本节集中说明启动脚本、手动运行示例，以及统一节点与 IMU 链路的使用方式。
+
+### 4.0 启动前准备
+
+启动前建议先完成以下检查：
+
+```bash
+cd /home/nuc/Program/uav_vision_ws
+source .venv/bin/activate
+source install/setup.bash
+```
+
+如果是首次部署或刚完成构建，请先确认这些包已经编译成功：`oakd_perception`、`imu_fusion`、`nav_mapping`、`nav_planning`、`nav_safety`、`nav_px4_bridge`、`nav_local`、`uav_bringup`。
+
+推荐的启动顺序是：
+
+1. 先启动 OAK-D 统一节点，确保 `/oakd/imu/raw` 和 `/oakd/points` 正常发布；
+2. 再启动 `imu_fusion`，确认 `/imu` 和 `map -> oakd_imu_link` 正常；
+3. 最后启动导航栈，检查 `/local_map/occupancy`、`/nav/cmd_vel`、`/nav/emergency`。
+
+如果你只想快速看完整联动，直接使用 `./scripts/run_complete_system.sh` 即可。
 
 ### 4.1 快速启动脚本（推荐）
 
@@ -141,6 +193,13 @@ uv pip install --python .venv/bin/python -e src/oakd_perception depthai
 ```
 
 每个脚本会：激活 `.venv` → 加载 ROS2 环境 → 读取 YAML 配置 → 启动点云发布节点。
+
+适合的场景：
+
+- `run_oakd_outdoor.sh`：户外光照充足、优先低功耗；
+- `run_oakd_indoor.sh`：室内或弱光环境、优先精度；
+- `run_oakd_balance.sh`：默认推荐模式；
+- `run_oakd_active_max.sh`：黑暗环境、优先主动红外照明。
 
 ### 4.2 手动运行示例（可传参）
 
@@ -205,6 +264,65 @@ chmod +x scripts/run_complete_system.sh
 ./scripts/run_imu_fusion_tf.sh
 ```
 
+建议在两个终端中运行时遵循以下顺序：
+
+1. 终端 A：先运行 `./scripts/run_oakd_unified.sh`；
+2. 终端 B：再运行 `./scripts/run_imu_fusion_tf.sh`；
+3. 等待 `map -> oakd_imu_link` 可见后，再打开 RViz 观察 `/oakd/points`。
+
+### 4.5 导航栈（已实现，基础策略）
+
+导航栈已经可通过统一入口启动，并完成以下链路：点云输入 → 局部占用栅格 → 速度命令 → 安全监控 → PX4 桥接。
+
+启动示例：
+
+```bash
+source install/setup.bash
+ros2 launch uav_bringup nav_stack.launch.py
+```
+
+启动后的预期行为：
+
+- `local_map_builder` 订阅 `/oakd/points_filtered`，发布 `/local_map/occupancy`；
+- `local_planner` 消费局部栅格并持续发布 `/nav/cmd_vel`；
+- `safety_monitor` 订阅 `/oakd/points` 并发布 `/nav/emergency`；
+- `px4_offboard_ctrl` 订阅速度与安全信号，并在 PX4 可用时发布 `fmu/in/*` 消息。
+
+如果你在本机没有 PX4 消息依赖，`px4_offboard_ctrl` 会进入降级模式，这是预期行为。
+
+当前导航栈节点：
+
+- `/local_map_builder` — 点云投影与占用栅格生成
+- `/local_planner` — 基础前向速度策略
+- `/safety_monitor` — 点云超时与点密度监测
+- `/px4_offboard_ctrl` — PX4 Offboard 桥接与看门狗
+
+注意：这条链路已验证可用，但 `local_planner` 仍是原型级策略，后续应替换为真正的障碍物感知局部规划器。
+
+### 4.6 一键验证顺序
+
+如果你想按最少步骤确认整个仓库的启动链路，建议使用下面这个顺序：
+
+```bash
+cd /home/nuc/Program/uav_vision_ws
+source .venv/bin/activate
+source install/setup.bash
+
+# 1. OAK-D 感知与 IMU
+./scripts/run_complete_system.sh
+
+# 2. 导航栈（另一个终端）
+ros2 launch uav_bringup nav_stack.launch.py
+```
+
+检查点：
+
+- `/oakd/imu/raw` 是否存在；
+- `/imu` 是否存在且 TF 树可见；
+- `/oakd/points`、`/oakd/points_filtered` 是否持续发布；
+- `/local_map/occupancy`、`/nav/cmd_vel`、`/nav/emergency` 是否正常；
+- 若使用 PX4，再检查 `/fmu/in/*` 是否有消息。
+
 ---
 
 ## 5. 配置与参数
@@ -264,9 +382,14 @@ chmod +x scripts/run_complete_system.sh
 
 ```bash
 ./scripts/run_complete_system.sh
+source install/setup.bash
+ros2 launch uav_bringup nav_stack.launch.py
 ./scripts/with_venv.sh ros2 topic list | grep -E "/oakd/points|/oakd/imu|/imu"
+./scripts/with_venv.sh ros2 topic list | grep -E "/local_map/occupancy|/nav/cmd_vel|/nav/emergency|/fmu/in/"
 ./scripts/with_venv.sh ros2 topic hz /oakd/points
 ./scripts/with_venv.sh ros2 topic hz /imu
+./scripts/with_venv.sh ros2 topic hz /nav/cmd_vel
+./scripts/with_venv.sh ros2 topic hz /nav/emergency
 ```
 
 ### 7.2 录制与离线回放（ros2 bag）
@@ -299,6 +422,7 @@ pkill -9 -f "oakd"
 - `oakd_link`：深度点云发布时的相机机体坐标系；
 - `oakd_imu_link`：IMU 原始数据和融合 TF 链中的默认 frame；
 - `map`：全局世界坐标系（由上层定位或 `imu_fusion` 提供）。
+- `camera_depth_optical_frame`：`nav_mapping` 中默认使用的点云源帧之一，具体取决于启动配置。
 
 注意：ROS 中位置单位为米（m），但节点参数中 `min_depth`/`max_depth` 以毫米（mm）表示（换算 1m = 1000mm）。
 
@@ -334,6 +458,7 @@ except Exception as e:
 - 常见问题：ModuleNotFoundError: depthai → 确认 `.venv` 中安装 depthai（见第 3 节）。
 - 设备冲突：优先使用统一节点或确保仅有一个进程访问设备。可用 `pkill` 停止冗余进程。
 - RViz 不显示点云：检查话题 `/oakd/points`、Fixed Frame 与 TF 链路。
+- 导航栈只会持续发布前向速度：这是当前 `local_planner` 的设计边界，不是故障。
 
 常用排查命令见第 7 节。
 
@@ -354,12 +479,22 @@ uav_vision_ws/
 │   │   └── active_stereo_max.yaml
 │   ├── setup.py
 │   └── package.xml
+├── src/nav_mapping/                      # 点云到局部占用栅格
+├── src/nav_planning/                     # 基础局部规划策略
+├── src/nav_safety/                       # 安全监控与紧急信号
+├── src/nav_px4_bridge/                   # PX4 Offboard 桥接
+├── src/nav_local/                        # 向后兼容层
+├── src/uav_bringup/                      # 导航栈启动编排
 ├── scripts/                             # 快速启动脚本与工具
 │   ├── with_venv.sh
+│   ├── run_complete_system.sh
+│   ├── run_imu_fusion_tf.sh
 │   ├── run_oakd_outdoor.sh
 │   ├── run_oakd_indoor.sh
 │   ├── run_oakd_balance.sh
-│   └── run_oakd_active_max.sh
+│   ├── run_oakd_active_max.sh
+│   └── run_oakd_unified.sh
+├── docs/                                # 架构、安装、验证与快速参考
 └── README.md
 ```
 
@@ -371,9 +506,3 @@ uav_vision_ws/
 
 ---
 
-如果你希望，我可以：
-- 1) 将 README 的验证步骤抽成 `scripts/check_system.sh`；
-- 2) 添加简短的 `CONTRIBUTING.md`；
-- 3) 把 README 里的命令示例校验为可执行脚本并在 CI 中运行（需你允许我创建脚本）。
-
-请选择下一步要我执行的项（或告诉我其他重排偏好）。

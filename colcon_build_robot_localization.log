@@ -1,0 +1,57 @@
+Starting >>> robot_localization
+--- stderr: robot_localization
+CMake Error at CMakeLists.txt:21 (find_package):
+  By not providing "Finddiagnostic_updater.cmake" in CMAKE_MODULE_PATH this
+  project has asked CMake to find a package configuration file provided by
+  "diagnostic_updater", but CMake did not find one.
+
+  Could not find a package configuration file provided by
+  "diagnostic_updater" with any of the following names:
+
+    diagnostic_updaterConfig.cmake
+    diagnostic_updater-config.cmake
+
+  Add the installation prefix of "diagnostic_updater" to CMAKE_PREFIX_PATH or
+  set "diagnostic_updater_DIR" to a directory containing one of the above
+  files.  If "diagnostic_updater" provides a separate development package or
+  SDK, be sure it has been installed.
+
+
+---
+Failed   <<< robot_localization [0.90s, exited with code 1]
+
+Summary: 0 packages finished [0.97s]
+  1 package failed: robot_localization
+  1 package had stderr output: robot_localization
+Starting >>> robot_localization
+--- stderr: robot_localization
+Traceback (most recent call last):
+  File "/opt/ros/jazzy/lib/rosidl_generator_type_description/rosidl_generator_type_description", line 21, in <module>
+    from rosidl_generator_type_description import generate_type_hash
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rosidl_generator_type_description/__init__.py", line 24, in <module>
+    from rosidl_parser.parser import parse_idl_file
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rosidl_parser/parser.py", line 20, in <module>
+    from lark import Lark
+ModuleNotFoundError: No module named 'lark'
+gmake[2]: *** [CMakeFiles/robot_localization__rosidl_generator_type_description.dir/build.make:91：rosidl_generator_type_description/robot_localization/srv/FromLL.json] 错误 1
+gmake[1]: *** [CMakeFiles/Makefile2:283：CMakeFiles/robot_localization__rosidl_generator_type_description.dir/all] 错误 2
+gmake[1]: *** 正在等待未完成的任务....
+Traceback (most recent call last):
+  File "/opt/ros/jazzy/share/rosidl_generator_rs/cmake/../../../lib/rosidl_generator_rs/rosidl_generator_rs", line 8, in <module>
+    from rosidl_generator_rs import generate_rs
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rosidl_generator_rs/__init__.py", line 23, in <module>
+    import rosidl_pycommon
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rosidl_pycommon/__init__.py", line 31, in <module>
+    from rosidl_parser.parser import parse_idl_file
+  File "/opt/ros/jazzy/lib/python3.12/site-packages/rosidl_parser/parser.py", line 20, in <module>
+    from lark import Lark
+ModuleNotFoundError: No module named 'lark'
+gmake[2]: *** [/home/nuc/Program/uav_vision_ws/build/robot_localization/robot_localization__rs/CMakeFiles/robot_localization__rs.dir/build.make:197：rosidl_generator_rs/robot_localization/rust/src/lib.rs] 错误 1
+gmake[1]: *** [CMakeFiles/Makefile2:1172：robot_localization__rs/CMakeFiles/robot_localization__rs.dir/all] 错误 2
+gmake: *** [Makefile:146：all] 错误 2
+---
+Failed   <<< robot_localization [9.51s, exited with code 2]
+
+Summary: 0 packages finished [9.58s]
+  1 package failed: robot_localization
+  1 package had stderr output: robot_localization

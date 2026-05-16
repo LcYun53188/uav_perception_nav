@@ -2,6 +2,8 @@ from launch import LaunchDescription
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def generate_launch_description():
@@ -11,7 +13,24 @@ def generate_launch_description():
         'nav_stack.yaml',
     ])
 
+    px4_comm_bridge_config = PathJoinSubstitution([
+        FindPackageShare('px4_comm_bridge'),
+        'config',
+        'px4_comm_bridge.yaml',
+    ])
+
+    ekf_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('uav_bringup'),
+                'launch',
+                'ekf_launch.py',
+            ])
+        )
+    )
+
     return LaunchDescription([
+        ekf_launch,
         Node(
             package='nav_mapping',
             executable='local_map_builder',
@@ -34,10 +53,10 @@ def generate_launch_description():
             parameters=[config_file],
         ),
         Node(
-            package='nav_px4_bridge',
-            executable='px4_offboard_ctrl',
-            name='px4_offboard_ctrl',
+            package='px4_comm_bridge',
+            executable='px4_bridge_node',
+            name='px4_comm_bridge',
             output='screen',
-            parameters=[config_file],
+            parameters=[px4_comm_bridge_config],
         ),
     ])

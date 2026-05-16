@@ -32,9 +32,9 @@ def generate_test_description():
             name='local_planner',
         ),
         launch_ros.actions.Node(
-            package='nav_px4_bridge',
-            executable='px4_offboard_ctrl',
-            name='px4_offboard_ctrl',
+            package='px4_comm_bridge',
+            executable='px4_bridge_node',
+            name='px4_comm_bridge',
         ),
         launch_ros.actions.Node(
             package='tf2_ros',

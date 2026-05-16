@@ -4,13 +4,13 @@
 
 - `nav_mapping`：点云处理与局部栅格生成
 - `nav_planning`：局部规划与速度决策
-- `nav_px4_bridge`：PX4 Offboard 话题桥接
+- `px4_comm_bridge`：PX4 数据/控制桥接（已替代 `nav_px4_bridge`）
 - `nav_safety`：安全检测与急停
 - `uav_bringup`：统一启动入口
 
 兼容启动方式仍保留：
 
 ```bash
-colcon build --packages-select nav_local nav_mapping nav_planning nav_px4_bridge nav_safety uav_bringup
+colcon build --packages-select nav_local nav_mapping nav_planning px4_comm_bridge nav_safety uav_bringup
 ros2 launch nav_local nav_local.launch.py
 ```
