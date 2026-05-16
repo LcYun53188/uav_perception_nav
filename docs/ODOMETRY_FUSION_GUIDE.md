@@ -20,7 +20,7 @@
 
 ### 3. PX4 飞控输入（可选）
 - **话题**：`/px4/vehicle_odometry` (px4_msgs::VehicleOdometry)
-- **来源**：PX4 自驾仪（通过 `nav_px4_bridge` 转换）
+- **来源**：PX4 自驾仪（通过 `px4_comm_bridge` 转换）
 - **融合的维度**：位置 + 朝向 + 线/角速度
 - **启用方式**：在 `config/ekf.yaml` 中注释掉 `odom1` 部分的注释以启用
 
@@ -285,13 +285,13 @@ ros2 param set /ekf_filter_node frequency 50.0
 /odometry/filtered  →  nav_mapping (可选：使用融合位置)
                     →  nav_planning  (可选：使用融合速度)
                     →  nav_safety    (可选：监视融合健康度)
-                    →  nav_px4_bridge (可选：反馈位置)
+                    →  px4_comm_bridge (可选：反馈位置)
 ```
 
 ### 下一步可能的改进
 
 1. **里程计驱动建图**：让 `nav_mapping` 订阅 `/odometry/filtered` 而非纯点云
-2. **反馈控制**：在 `nav_px4_bridge` 中利用融合位置进行位置反馈控制
+2. **反馈控制**：在 `px4_comm_bridge` 中利用融合位置进行位置反馈控制
 3. **尾部闭合与优化**：集成 loop-closure 检测器修正 `map → odom` 变换
 
 ## 参考资源

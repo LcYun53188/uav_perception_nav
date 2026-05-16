@@ -16,7 +16,7 @@
   ✅ nav_mapping        - 0 errors, 1 warning        [0.89s]
   ✅ nav_planning       - 0 errors, 1 warning        [0.42s]
   ✅ nav_safety         - 0 errors, 1 warning        [0.38s]
-  ✅ nav_px4_bridge     - 0 errors, fallback OK      [0.59s]
+  ✅ px4_comm_bridge     - 0 errors, fallback OK      [0.59s]
   ✅ nav_local          - 0 errors, 1 warning        [0.51s]
   ✅ uav_bringup        - 0 errors, 1 warning        [0.45s]
 

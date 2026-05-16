@@ -413,7 +413,7 @@ src/oakd_perception/
 **推荐顺序：**
 
 1. 先保持 `oakd_unified_node`、`imu_fusion` 和 TF 链路稳定。
-2. 用 `px4_offboard_ctrl` 跑通最小闭环控制。
+2. 用 `px4_bridge_node` 跑通最小闭环控制。
 3. 先实现 `nav` 方案，确保能在局部障碍前稳定制动或绕行。
 4. 再把点云处理升级到 3D 地图、体素或 ESDF。
 5. 最终让 `3D` 导航成为主路径，`nav` 作为安全降级层。

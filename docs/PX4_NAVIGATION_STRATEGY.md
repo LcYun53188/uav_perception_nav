@@ -7,7 +7,7 @@
 - `oakd_perception`：发布原始 IMU 与深度点云。
 - `imu_fusion`：输出融合姿态并广播 TF。
 - `px4_msgs`：提供 PX4 对接所需的 ROS 2 消息定义。
-- `px4_offboard_ctrl`：预留 PX4 外部控制入口。
+- `px4_comm_bridge`（可执行 `px4_bridge_node`）：PX4 外部控制与数据桥接入口。
 - `uav_bringup`：预留系统编排入口。
 
 ---
@@ -68,7 +68,7 @@ PX4 侧最终要解决的不是“看见障碍物”，而是以下三件事：
 - 将点云投影到水平面，生成局部 occupancy grid。
 - 按高度阈值过滤地面、天花板和过高区域。
 - 使用局部路径规划器输出速度向量或短距离目标点。
-- 通过 `px4_offboard_ctrl` 发送位置/速度 setpoint 给 PX4。
+- 通过 `px4_comm_bridge`（`px4_bridge_node`）发送位置/速度 setpoint 给 PX4。
 
 ### 优点
 
@@ -141,7 +141,7 @@ PX4 侧最终要解决的不是“看见障碍物”，而是以下三件事：
 
 ### 阶段 2：PX4 Offboard 打通
 
-- 在 `px4_offboard_ctrl` 中实现最小闭环。
+- 在 `px4_comm_bridge` 中实现最小闭环。
 - 先实现解锁、起飞、定点悬停、速度控制。
 - 建立安全降级逻辑，例如点云丢失时悬停或返航。
 
@@ -171,7 +171,7 @@ PX4 侧最终要解决的不是“看见障碍物”，而是以下三件事：
 - 继续提供姿态融合与 TF。
 - 确保导航层拿到统一坐标系。
 
-### `px4_offboard_ctrl`
+### `px4_comm_bridge`
 
 - 作为 PX4 指令出口。
 - 后续承载位置控制、速度控制、避障接管和安全降级。

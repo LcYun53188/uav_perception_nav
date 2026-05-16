@@ -1,6 +1,6 @@
 # px4_comm_bridge
 
-PX4 与 ROS 2 之间的统一桥接包，已迁移并整合原 `nav_px4_bridge` 控制职责。
+PX4 与 ROS 2 之间的统一桥接包，负责 PX4 数据/控制双向桥接。
 
 ## 1. 架构（职责分离）
 
@@ -43,7 +43,7 @@ PX4 与 ROS 2 之间的统一桥接包，已迁移并整合原 `nav_px4_bridge` 
 - `px4_msgs/msg/TrajectorySetpoint`（默认 `/fmu/in/trajectory_setpoint`）
 - `px4_msgs/msg/VehicleCommand`（默认 `/fmu/in/vehicle_command`）
 
-控制桥能力（已从 `nav_px4_bridge` 迁移）：
+控制桥能力：
 
 - 持续 Offboard 流发布
 - 命令超时保护（`cmd_timeout_sec`）
@@ -95,4 +95,4 @@ ros2 topic list | grep -E "^/px4/odom$|^/imu$|^/fmu/in/offboard_control_mode$|^/
 
 ## 6. 与 uav_bringup 的关系
 
-`uav_bringup/launch/nav_stack.launch.py` 已切换为启动 `px4_comm_bridge`，不再依赖 `nav_px4_bridge` 完成 PX4 控制输出。
+`uav_bringup/launch/nav_stack.launch.py` 已切换为启动 `px4_comm_bridge`，由本包统一承担 PX4 通讯能力。

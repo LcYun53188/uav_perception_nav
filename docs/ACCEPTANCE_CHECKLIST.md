@@ -25,7 +25,7 @@
 - [x] 实现 local_map_builder (TF 坐标变换)
 - [x] 实现 local_planner (基础策略)
 - [x] 实现 safety_monitor (增强安全层: 超时+分级)
-- [x] 实现 px4_offboard_ctrl (集成 px4_msgs + 指令看门狗)
+- [x] 实现 px4_bridge_node (集成 px4_msgs + 指令看门狗)
 - [x] 建立中央参数管理系统
 - [x] 包拆分与向后兼容性
 - [x] 修复 px4_msgs 构建 (empy 3.3.4 降级方案)
@@ -40,7 +40,7 @@
 - [x] 向后兼容性测试
 - [x] 参数加载验证
 - [x] 故障处理验证 (增强看门狗验证)
-- [x] 编写并运行单元测试套件 (nav_mapping, nav_safety, nav_px4_bridge)
+- [x] 编写并运行单元测试套件 (nav_mapping, nav_safety, px4_comm_bridge)
 - [x] 编写并运行集成测试 (End-to-End Pipeline)
 
 ### 🟨 进行中 / 待办
@@ -75,7 +75,7 @@
 | nav_mapping | `colcon build` | ❌ 0 | ⚠️ 1 | 0.89s |
 | nav_planning | `colcon build` | ❌ 0 | ⚠️ 1 | 0.42s |
 | nav_safety | `colcon build` | ❌ 0 | ⚠️ 1 | 0.38s |
-| nav_px4_bridge | `colcon build` | ❌ 0 | ⚠️ 1 | 0.59s |
+| px4_comm_bridge | `colcon build` | ❌ 0 | ⚠️ 1 | 0.59s |
 | nav_local | `colcon build` | ❌ 0 | ⚠️ 1 | 0.51s |
 | uav_bringup | `colcon build` | ❌ 0 | ⚠️ 1 | 0.45s |
 
@@ -120,7 +120,7 @@
 
 #### [x] 编写单元测试套件
 **状态**: ✅ DONE
-**覆盖**: nav_mapping, nav_safety, nav_px4_bridge
+**覆盖**: nav_mapping, nav_safety, px4_comm_bridge
 
 #### [x] 编写集成测试
 **状态**: ✅ DONE

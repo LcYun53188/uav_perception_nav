@@ -1,15 +1,11 @@
-# nav_px4_bridge
+# nav_px4_bridge (Deprecated)
 
-PX4 Offboard 桥接包。
+该包已弃用，PX4 通讯职责已迁移到 `src/px4_comm_bridge`。
 
-- 订阅: `/nav/cmd_vel`, `/nav/emergency`
-- 发布: `/fmu/in/offboard_control_mode`, `/fmu/in/trajectory_setpoint`, `/fmu/in/vehicle_command`
+请改用：
 
-当前实现：
+- 包：`px4_comm_bridge`
+- 可执行：`px4_bridge_node`
+- 文档：`src/px4_comm_bridge/README.md`
 
-- 持续发布 `OffboardControlMode` 和 `TrajectorySetpoint`
-- 支持 `auto_arm` 选项
-- 支持 `emergency_action = land|rtl|disarm`
-- 默认把 ROS ENU 速度转换成 PX4 NED 速度
-
-后续可继续补充：PX4 状态反馈、offboard 进入确认、失联保护和模式切换状态机。
+当前目录保留仅用于历史兼容，不应再作为主通讯实现。

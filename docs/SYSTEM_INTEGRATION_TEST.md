@@ -17,7 +17,7 @@
 | `nav_mapping` | ✅ 成功 | 0.89s | TF 坐标变换已启用 |
 | `nav_planning` | ✅ 成功 | 0.42s | 基础前向速度策略 |
 | `nav_safety` | ✅ 成功 | 0.38s | 点数阈值监视 |
-| `nav_px4_bridge` | ✅ 成功 | 0.59s | 降级模式（px4_msgs 可选） |
+| `px4_comm_bridge` | ✅ 成功 | 0.59s | 降级模式（px4_msgs 可选） |
 | `nav_local` | ✅ 成功 | 0.51s | 兼容层转发正常 |
 | `uav_bringup` | ✅ 成功 | 0.45s | 启动编排正常 |
 
@@ -39,7 +39,7 @@ ros2 launch uav_bringup nav_stack.launch.py
 | `/local_map_builder` | ✅ 运行 | 加载参数: frame_id=map, resolution=0.5 | 低 |
 | `/local_planner` | ✅ 运行 | 加载参数: forward_speed=0.5 | 低 |
 | `/safety_monitor` | ✅ 运行 | 加载参数: min_points_threshold=10 | 低 |
-| `/px4_offboard_ctrl` | ✅ 运行 | 警告: px4_msgs 不可用 (降级) | 低 |
+| `/px4_comm_bridge` | ✅ 运行 | 警告: px4_msgs 不可用 (降级) | 低 |
 
 **总结**: 所有 4 个节点成功启动 ✅
 
@@ -75,7 +75,7 @@ ros2 launch uav_bringup nav_stack.launch.py
                ▼
 ┌──────────────────────────────────────────────────────────┐
 │ 4. 执行层                                               │
-│  Node: /px4_offboard_ctrl                              │
+│  Node: /px4_comm_bridge                              │
 │  订阅: /nav/cmd_vel + /nav/emergency                   │
 │  PX4 发布: DISABLED (px4_msgs 降级模式)                 │
 └──────────────────────────────────────────────────────────┘
@@ -202,7 +202,7 @@ data: false  # 正常操作
 
 **验证**: ✅ 监视链路正常
 
-### 5.4 px4_offboard_ctrl 接口
+### 5.4 px4_comm_bridge 接口
 ```
 订阅:
   - /nav/cmd_vel (geometry_msgs/msg/TwistStamped)
@@ -224,7 +224,7 @@ data: false  # 正常操作
 ros2 run nav_local local_map_builder       # ✅ 转发到 nav_mapping
 ros2 run nav_local local_planner           # ✅ 转发到 nav_planning
 ros2 run nav_local safety_monitor          # ✅ 转发到 nav_safety
-ros2 run nav_local px4_offboard_ctrl       # ✅ 转发到 nav_px4_bridge
+ros2 run px4_comm_bridge px4_bridge_node # ✅ 直接运行当前 PX4 通讯节点
 ```
 
 **验证**: ✅ 所有控制台脚本兼容

@@ -87,7 +87,7 @@ twist:
    - 输出: `/nav/emergency` (紧急标志)
    - 职责: 传感器监视 → 故障检测
 
-4. **px4_offboard_ctrl** (`nav_px4_bridge`)
+4. **px4_bridge_node** (`px4_comm_bridge`)
    - 输入: `/nav/cmd_vel` + `/nav/emergency`
    - 输出: `/fmu/in/*` (PX4 消息, 如可用)
    - 职责: 速度 → 飞控命令
@@ -182,7 +182,7 @@ ros2 param set /safety_monitor min_points_threshold 20
 
 **说明**: 点数低于阈值时触发 emergency = true。
 
-### px4_offboard_ctrl (nav_px4_bridge)
+### px4_bridge_node (px4_comm_bridge)
 
 参数通常为默认值。运行在降级模式（px4_msgs 不可用）。
 
@@ -318,7 +318,7 @@ ros2 param get /local_map_builder resolution
 nav_mapping (local_map_builder)
 nav_planning (local_planner)
 nav_safety (safety_monitor)
-nav_px4_bridge (px4_offboard_ctrl)
+px4_comm_bridge (px4_bridge_node)
 nav_local (兼容层)
 uav_bringup (启动/配置)
 ```

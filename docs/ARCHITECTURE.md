@@ -388,8 +388,8 @@ src/
 │       - 发布: /nav/emergency
 │       - 监视: 点数阈值故障检测
 │
-├── nav_px4_bridge/     # 新: velocity + emergency → PX4 msgs
-│   └── px4_offboard_ctrl.py (170 行)
+├── px4_comm_bridge/     # 新: velocity + emergency → PX4 msgs
+│   └── px4_bridge_node.py (170 行)
 │       - 订阅: /nav/cmd_vel, /nav/emergency
 │       - 发布: /fmu/in/* (px4_msgs，条件可用)
 │       - 转换: ENU → NED 坐标系
@@ -399,7 +399,7 @@ src/
 │   ├── local_map_builder.py       (→ nav_mapping)
 │   ├── local_planner.py           (→ nav_planning)
 │   ├── safety_monitor.py          (→ nav_safety)
-│   └── px4_offboard_ctrl.py       (→ nav_px4_bridge)
+│   └── px4_bridge_node.py       (→ px4_comm_bridge)
 │
 └── uav_bringup/        # 新: 中央 launch + 参数管理
     ├── launch/nav_stack.launch.py
@@ -434,8 +434,8 @@ src/
              │ /nav/cmd_vel
              ▼
     ┌────────────────────────┐
-    │ px4_offboard_ctrl      │
-    │ (nav_px4_bridge)       │
+    │ px4_bridge_node      │
+    │ (px4_comm_bridge)       │
     └────────┬───────────────┘
              │
              ▼ /fmu/in/*
@@ -470,7 +470,7 @@ safety_monitor:
   ros__parameters:
     min_points_threshold: 10
 
-px4_offboard_ctrl:
+px4_bridge_node:
   ros__parameters:
     control_rate_hz: 20
     auto_arm: true

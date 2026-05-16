@@ -4,7 +4,7 @@
 
 - `nav_mapping`：点云处理与局部栅格生成
 - `nav_planning`：局部规划与速度决策
-- `px4_comm_bridge`：PX4 数据/控制桥接（已替代 `nav_px4_bridge`）
+- `px4_comm_bridge`：PX4 数据/控制桥接
 - `nav_safety`：安全检测与急停
 - `uav_bringup`：统一启动入口
 

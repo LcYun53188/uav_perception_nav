@@ -31,7 +31,7 @@ source .venv/bin/activate
 2. 构建当前已实现的核心包：
 
 ```bash
-./scripts/with_venv.sh colcon build --packages-select oakd_perception imu_fusion nav_mapping nav_planning nav_safety nav_px4_bridge nav_local uav_bringup px4_msgs
+./scripts/with_venv.sh colcon build --packages-select oakd_perception imu_fusion nav_mapping nav_planning nav_safety px4_comm_bridge nav_local uav_bringup px4_msgs
 source install/setup.bash
 ```
 
@@ -52,7 +52,7 @@ source install/setup.bash
 
 - OAK-D 统一节点与 IMU / 深度同进程采集；
 - `imu_fusion` 与 TF 广播链路；
-- `nav_mapping`、`nav_planning`、`nav_safety`、`nav_px4_bridge`、`uav_bringup` 的基础集成；
+- `nav_mapping`、`nav_planning`、`nav_safety`、`px4_comm_bridge`、`uav_bringup` 的基础集成；
 - 系统级联调与单元/集成测试。
 
 仍需补齐：
@@ -92,11 +92,33 @@ source install/setup.bash
 
 - `oakd_perception`：负责 OAK‑D 设备的深度点云与原始 IMU 采集（包含可配置的立体深度参数）；
 - `imu_fusion`：接收原始 IMU，输出融合后的姿态并广播 TF；
-- `nav_mapping`、`nav_planning`、`nav_safety`、`nav_px4_bridge`：提供局部建图、基础规划、安全监控与 PX4 桥接；
+- `nav_mapping`、`nav_planning`、`nav_safety`、`px4_comm_bridge`：提供局部建图、基础规划、安全监控与 PX4 数据/控制桥接；
 - `uav_bringup`：统一启动编排与中央参数管理；
 - 多个启动脚本与配置预设，便于在室内/户外/黑暗场景间切换。
 
 推荐使用“一体化/统一节点”方案（在单进程中同时管理深度与 IMU），避免设备冲突（X_LINK_DEVICE_ALREADY_IN_USE）。详见后文“统一节点”节与 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)。
+
+### 1.1 包职责与话题接口
+
+下面汇总当前仓库主要功能包的职责，以及它们直接订阅/发布的话题。没有直接话题接口的包，说明其职责主要是启动编排、兼容层或消息定义。
+
+| 包 | 职责 | 订阅 | 发布 |
+|---|---|---|---|
+| `oakd_perception` | OAK-D 深度点云与原始 IMU 采集 | - | `/oakd/imu/raw`，`/oakd/points` |
+| `imu_fusion` | IMU 融合与 TF 广播 | `/oakd/imu/raw` | `/imu`，`TF(map -> oakd_imu_link)` |
+| `nav_mapping` | 点云投影与局部占用栅格生成 | `/oakd/points_filtered`，`/tf`，`/tf_static` | `/local_map/occupancy` |
+| `nav_planning` | 基础局部规划与速度决策 | `/local_map/occupancy` | `/nav/cmd_vel` |
+| `nav_safety` | 点云安全监控与急停信号 | `/oakd/points` | `/nav/emergency` |
+| `px4_comm_bridge` | PX4 数据/控制桥接与看门狗 | `/nav/cmd_vel`，`/nav/emergency`，`/nav/safety_status`，`/nav/cmd_pose`，`/px4/vehicle_odometry`，`/px4/vehicle_imu` | `/px4/odom`，`/imu`，`/fmu/in/offboard_control_mode`，`/fmu/in/trajectory_setpoint`，`/fmu/in/vehicle_command` |
+| `nav_local` | 向后兼容层（转发旧入口到新包） | - | - |
+| `uav_bringup` | 统一启动编排与参数管理 | - | - |
+| `px4_msgs` | PX4 消息定义包 | - | - |
+
+说明：
+
+- `px4_comm_bridge` 会在 `px4_msgs` 可用时开启 PX4 相关订阅/发布，不可用时自动降级；
+- `nav_local` 目前只保留兼容入口，不承担新的业务逻辑；
+- `uav_bringup` 主要负责 launch 与配置聚合，不直接发布业务话题。
 
 ---
 
@@ -113,14 +135,14 @@ source install/setup.bash
 
 上游：/oakd/imu/raw -> imu_fusion -> /imu (融合) -> imu_tf_broadcaster -> TF(map -> oakd_imu_link)
 
-导航链路：/oakd/points_filtered -> /local_map/occupancy -> /nav/cmd_vel -> /nav/emergency -> PX4
+导航链路：/oakd/points_filtered -> /local_map/occupancy -> /nav/cmd_vel -> /nav/emergency -> px4_comm_bridge -> PX4
 ```
 
 要点：
 - 将 IMU 与深度放在同一进程（统一节点）避免 USB/设备冲突；
 - `imu_fusion` 负责从原始 IMU 出来姿态估计并广播 `map -> oakd_imu_link`；
 - RViz 的 `Fixed Frame` 决定点云是否随 IMU 姿态旋转（`map` 时会跟随 TF）。
-- 导航栈已经打通数据流，但 `local_planner` 仍是基础前向速度策略，尚未达到成熟避障规划器的算法完整度。
+- 导航栈已经打通数据流，但 `local_planner` 仍是基础前向速度策略，`px4_comm_bridge` 负责 PX4 数据/控制桥接，二者都尚未替代成熟避障规划器与飞控状态机。
 
 ---
 
@@ -139,7 +161,7 @@ uv venv .venv
 uv pip install --python .venv/bin/python -e src/oakd_perception depthai
 
 # 3. 构建核心包
-./scripts/with_venv.sh colcon build --packages-select oakd_perception imu_fusion nav_mapping nav_planning nav_safety nav_px4_bridge nav_local uav_bringup px4_msgs
+./scripts/with_venv.sh colcon build --packages-select oakd_perception imu_fusion nav_mapping nav_planning nav_safety px4_comm_bridge nav_local uav_bringup px4_msgs
 
 # 4. 激活工作区
 source install/setup.bash
@@ -165,7 +187,7 @@ source .venv/bin/activate
 source install/setup.bash
 ```
 
-如果是首次部署或刚完成构建，请先确认这些包已经编译成功：`oakd_perception`、`imu_fusion`、`nav_mapping`、`nav_planning`、`nav_safety`、`nav_px4_bridge`、`nav_local`、`uav_bringup`。
+如果是首次部署或刚完成构建，请先确认这些包已经编译成功：`oakd_perception`、`imu_fusion`、`nav_mapping`、`nav_planning`、`nav_safety`、`px4_comm_bridge`、`nav_local`、`uav_bringup`。
 
 推荐的启动顺序是：
 
@@ -286,16 +308,16 @@ ros2 launch uav_bringup nav_stack.launch.py
 - `local_map_builder` 订阅 `/oakd/points_filtered`，发布 `/local_map/occupancy`；
 - `local_planner` 消费局部栅格并持续发布 `/nav/cmd_vel`；
 - `safety_monitor` 订阅 `/oakd/points` 并发布 `/nav/emergency`；
-- `px4_offboard_ctrl` 订阅速度与安全信号，并在 PX4 可用时发布 `fmu/in/*` 消息。
+- `px4_comm_bridge` 节点（可执行 `px4_bridge_node`）订阅速度与安全信号，并在 PX4 可用时发布 `fmu/in/*` 消息。
 
-如果你在本机没有 PX4 消息依赖，`px4_offboard_ctrl` 会进入降级模式，这是预期行为。
+如果你在本机没有 PX4 消息依赖，`px4_comm_bridge` 会进入降级模式，这是预期行为。
 
 当前导航栈节点：
 
 - `/local_map_builder` — 点云投影与占用栅格生成
 - `/local_planner` — 基础前向速度策略
 - `/safety_monitor` — 点云超时与点密度监测
-- `/px4_offboard_ctrl` — PX4 Offboard 桥接与看门狗
+- `/px4_comm_bridge` — PX4 数据/控制桥接与看门狗
 
 注意：这条链路已验证可用，但 `local_planner` 仍是原型级策略，后续应替换为真正的障碍物感知局部规划器。
 
@@ -482,7 +504,7 @@ uav_vision_ws/
 ├── src/nav_mapping/                      # 点云到局部占用栅格
 ├── src/nav_planning/                     # 基础局部规划策略
 ├── src/nav_safety/                       # 安全监控与紧急信号
-├── src/nav_px4_bridge/                   # PX4 Offboard 桥接
+├── src/px4_comm_bridge/                   # PX4 数据/控制桥接
 ├── src/nav_local/                        # 向后兼容层
 ├── src/uav_bringup/                      # 导航栈启动编排
 ├── scripts/                             # 快速启动脚本与工具
