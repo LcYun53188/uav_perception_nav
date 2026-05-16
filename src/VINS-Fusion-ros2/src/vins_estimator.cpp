@@ -1,4 +1,4 @@
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 #include <vins_fusion_ros2/vins_estimator.h>
 
 VinsEstimator::VinsEstimator() : rclcpp::Node("vins_estimator") {

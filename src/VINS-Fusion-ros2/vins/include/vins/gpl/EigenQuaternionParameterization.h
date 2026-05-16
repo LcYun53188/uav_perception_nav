@@ -1,11 +1,15 @@
 #ifndef EIGENQUATERNIONPARAMETERIZATION_H
 #define EIGENQUATERNIONPARAMETERIZATION_H
 
+#include <ceres/version.h>
+#if CERES_VERSION_MAJOR < 2 || (CERES_VERSION_MAJOR == 2 && CERES_VERSION_MINOR < 2)
 #include "ceres/local_parameterization.h"
+#endif
 
 namespace camodocal
 {
 
+#if CERES_VERSION_MAJOR < 2 || (CERES_VERSION_MAJOR == 2 && CERES_VERSION_MINOR < 2)
 class EigenQuaternionParameterization : public ceres::LocalParameterization
 {
 public:
@@ -33,6 +37,7 @@ EigenQuaternionParameterization::EigenQuaternionProduct(const T z[4], const T w[
     zw[2] = z[3] * w[2] + z[0] * w[1] - z[1] * w[0] + z[2] * w[3];
     zw[3] = z[3] * w[3] - z[0] * w[0] - z[1] * w[1] - z[2] * w[2];
 }
+#endif
 
 }
 

@@ -10,6 +10,7 @@
 
 #include <vins/factor/pose_local_parameterization.h>
 
+#if CERES_VERSION_MAJOR < 2 || (CERES_VERSION_MAJOR == 2 && CERES_VERSION_MINOR < 2)
 bool PoseLocalParameterization::Plus(const double *x, const double *delta,
                                      double *x_plus_delta) const {
   Eigen::Map<const Eigen::Vector3d> _p(x);
@@ -36,3 +37,4 @@ bool PoseLocalParameterization::ComputeJacobian(const double *x,
 
   return true;
 }
+#endif

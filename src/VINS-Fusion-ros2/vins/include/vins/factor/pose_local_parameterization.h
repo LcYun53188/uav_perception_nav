@@ -15,6 +15,7 @@
 
 #include <Eigen/Dense>
 
+#if CERES_VERSION_MAJOR < 2 || (CERES_VERSION_MAJOR == 2 && CERES_VERSION_MINOR < 2)
 class PoseLocalParameterization : public ceres::LocalParameterization {
   virtual bool Plus(const double *x, const double *delta,
                     double *x_plus_delta) const;
@@ -22,3 +23,4 @@ class PoseLocalParameterization : public ceres::LocalParameterization {
   virtual int GlobalSize() const { return 7; };
   virtual int LocalSize() const { return 6; };
 };
+#endif

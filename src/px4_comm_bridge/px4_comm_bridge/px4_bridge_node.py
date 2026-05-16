@@ -7,6 +7,7 @@ from .data_bridge import Px4DataBridge
 try:
     from px4_msgs.msg import (
         OffboardControlMode,
+        SensorGps,
         TrajectorySetpoint,
         VehicleCommand,
         VehicleImu,
@@ -15,6 +16,7 @@ try:
     PX4_MSGS = True
 except Exception:
     OffboardControlMode = None
+    SensorGps = None
     TrajectorySetpoint = None
     VehicleCommand = None
     VehicleOdometry = None
@@ -33,8 +35,10 @@ class Px4CommBridge(Node):
         # Data bridge parameters
         self.declare_parameter('px4_odometry_topic', '/px4/vehicle_odometry')
         self.declare_parameter('px4_imu_topic', '/px4/vehicle_imu')
+        self.declare_parameter('px4_gps_topic', '/fmu/out/sensor_gps')
         self.declare_parameter('pub_odometry', '/px4/odom')
         self.declare_parameter('pub_imu', '/imu')
+        self.declare_parameter('pub_gps', '/gps/fix')
 
         # Control bridge parameters
         self.declare_parameter('planner_cmd_topic', '/nav/cmd_vel')
@@ -59,6 +63,7 @@ class Px4CommBridge(Node):
             PX4_MSGS,
             VehicleOdometry,
             VehicleImu,
+            SensorGps,
         )
         self.control_bridge = Px4ControlBridge(
             self,

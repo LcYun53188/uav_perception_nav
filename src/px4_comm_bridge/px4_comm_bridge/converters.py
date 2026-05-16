@@ -2,7 +2,7 @@ import math
 
 from builtin_interfaces.msg import Time
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import Imu
+from sensor_msgs.msg import Imu, NavSatFix, NavSatStatus
 
 
 def us_to_time(timestamp_us: int) -> Time:
@@ -96,3 +96,54 @@ def fill_offboard_control_mode(offboard_msg, timestamp_us: int):
     offboard_msg.body_rate = False
     offboard_msg.thrust_and_torque = False
     offboard_msg.direct_actuator = False
+
+
+def sensor_gps_to_navsatfix(msg) -> NavSatFix:
+    """Convert px4_msgs/SensorGps to sensor_msgs/NavSatFix."""
+    fix = NavSatFix()
+    fix.header.frame_id = 'gps_link'
+
+    try:
+        fix.header.stamp = us_to_time(int(msg.timestamp))
+    except Exception:
+        pass
+
+    # Position
+    fix.latitude = float(msg.latitude_deg)
+    fix.longitude = float(msg.longitude_deg)
+    fix.altitude = float(msg.altitude_msl_m)
+
+    # Fix status mapping: PX4 fix_type -> NavSatStatus
+    # PX4: 0=NONE, 2=2D, 3=3D, 4=RTCM, 5=RTK_FLOAT, 6=RTK_FIXED
+    status = NavSatStatus()
+    fix_type = int(msg.fix_type)
+    if fix_type <= 1:
+        status.status = NavSatStatus.STATUS_NO_FIX
+    elif fix_type <= 3:
+        status.status = NavSatStatus.STATUS_FIX
+    elif fix_type == 4:
+        status.status = NavSatStatus.STATUS_SBAS
+    else:
+        # RTK float/fixed
+        status.status = NavSatStatus.STATUS_GBAS_FIX
+    status.service = NavSatStatus.SERVICE_GPS
+    fix.status = status
+
+    # Covariance from eph/epv (horizontal/vertical accuracy in metres)
+    try:
+        eph = float(msg.eph)
+        epv = float(msg.epv)
+    except Exception:
+        eph = 100.0
+        epv = 100.0
+
+    # Diagonal covariance: [east², north², up²]
+    fix.position_covariance = [
+        eph * eph, 0.0, 0.0,
+        0.0, eph * eph, 0.0,
+        0.0, 0.0, epv * epv,
+    ]
+    fix.position_covariance_type = NavSatFix.COVARIANCE_TYPE_DIAGONAL_KNOWN
+
+    return fix
+
