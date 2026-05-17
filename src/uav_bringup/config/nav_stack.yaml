@@ -107,6 +107,10 @@ local_map_builder:
 local_planner:
   ros__parameters:
     forward_speed: 0.5
+    repulsion_gain: 2.0
+    influence_radius: 3.0
+    max_speed: 1.0
+    goal_reached_threshold: 0.5
 
 safety_monitor:
   ros__parameters:
