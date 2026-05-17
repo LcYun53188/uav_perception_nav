@@ -6,6 +6,7 @@ from .converters import (
     fill_trajectory_setpoint,
     planner_twist_to_ned_velocity,
 )
+from .px4_state_machine import PX4StateMachine, PX4State
 
 
 class Px4ControlBridge:
@@ -34,6 +35,13 @@ class Px4ControlBridge:
         self.offboard_mode_pub = None
         self.setpoint_pub = None
         self.vehicle_command_pub = None
+
+        # ─────────────────────────────────────────────────────
+        # W2-D8: 自动武装状态机初始化
+        # ─────────────────────────────────────────────────────
+        self.state_machine = PX4StateMachine(
+            node, px4_available, vehicle_command_type
+        )
 
     def start(self):
         if not self.px4_available:
@@ -83,6 +91,10 @@ class Px4ControlBridge:
 
         rate = float(self.node.get_parameter('control_rate_hz').value)
         self.node.create_timer(max(0.01, 1.0 / rate), self.publish_control)
+        
+        # W2-D8: 设置状态机的命令发送回调
+        self.state_machine.send_vehicle_command = self.send_vehicle_command
+        
         self.node.get_logger().info('PX4 control bridge enabled')
 
     def now_us(self):
@@ -91,6 +103,10 @@ class Px4ControlBridge:
     def cmd_cb(self, msg: TwistStamped):
         self.latest_cmd = msg
         self.last_cmd_time = self.node.get_clock().now()
+        
+        # W2-D8: 通知状态机接收到导航命令
+        self.state_machine.on_navigation_command_received()
+        
         if not self.offboard_engaged:
             self.node.get_logger().info('Received first nav command, enabling offboard streaming')
             self.offboard_engaged = True
@@ -107,10 +123,18 @@ class Px4ControlBridge:
         if msg.data and not self.emergency_active:
             self.node.get_logger().warn('Emergency signal (Bool) received')
         self.emergency_active = bool(msg.data)
+        
+        # W2-D8: 通知状态机应急信号
+        self.state_machine.on_emergency_signal(self.emergency_active)
+        
         self._check_and_trigger_emergency()
 
     def safety_cb(self, msg: Int8):
         self.safety_level = int(msg.data)
+        
+        # W2-D8: 通知状态机安全状态
+        self.state_machine.on_safety_status(self.safety_level)
+        
         if self.safety_level >= 2:
             self.emergency_active = True
         self._check_and_trigger_emergency()
@@ -124,25 +148,56 @@ class Px4ControlBridge:
             self.emergency_sent = False
 
     def publish_control(self):
-        if self.offboard_engaged:
-            cmd_timeout = float(self.node.get_parameter('cmd_timeout_sec').value)
-            now = self.node.get_clock().now()
-            if (now - self.last_cmd_time).nanoseconds / 1e9 > cmd_timeout:
-                if not self.emergency_active:
-                    self.node.get_logger().error(f'Command timeout detected! (>{cmd_timeout}s)')
-                    self.emergency_active = True
-                    self._check_and_trigger_emergency()
-
-        if self.emergency_active:
-            self.publish_halt_setpoint()
+        """
+        W2-D8: 根据状态机驱动的流程发送控制信号
+        
+        旧流程 (简单): IDLE → 收到 cmd → 发送 offboard_control + setpoint
+        新流程 (状态机): IDLE → ARM → OFFBOARD → FLYING → [EMERGENCY/LANDED]
+        """
+        
+        # ─────────────────────────────────────────────────────
+        # 1. 更新 PX4 反馈状态 (从之前收到的 VehicleStatus)
+        # ─────────────────────────────────────────────────────
+        self.state_machine.on_px4_status_update(
+            armed=self.armed,
+            offboard_active=self.offboard_engaged,
+            nav_state=0  # 暂时使用占位符，应从 VehicleStatus 获取
+        )
+        
+        # ─────────────────────────────────────────────────────
+        # 2. 执行状态机 (状态转移 + 动作处理)
+        # ─────────────────────────────────────────────────────
+        self.state_machine.update()
+        
+        # ─────────────────────────────────────────────────────
+        # 3. 根据状态机状态发送响应的控制信号
+        # ─────────────────────────────────────────────────────
+        sm_state = self.state_machine.current_state
+        
+        if sm_state == PX4State.IDLE or sm_state == PX4State.ARM or sm_state == PX4State.OFFBOARD:
+            # 这些状态不发送控制信号（状态机自己发送 VEHICLE_COMMAND）
+            return
+        
+        elif sm_state == PX4State.FLYING:
+            # 飞行状态：发送心跳和设置点
+            if self.latest_cmd is None:
+                return
+            
+            # 心跳流送：持续发送 offboard_control_mode（50Hz）
             self.publish_offboard_mode()
-            return
-
-        if self.latest_cmd is None:
-            return
-
-        self.publish_offboard_mode()
-        self.publish_setpoint(self.latest_cmd)
+            
+            # 发送速度设置点
+            self.publish_setpoint(self.latest_cmd)
+        
+        elif sm_state == PX4State.EMERGENCY:
+            # 应急状态：心跳 + 停止速度
+            self.publish_offboard_mode()
+            self.publish_halt_setpoint()
+        
+        elif sm_state == PX4State.LANDED:
+            # 已着陆：逐步退出 offboard 和解除武装
+            # 这些由状态机通过 send_vehicle_command 处理
+            pass
 
     def publish_offboard_mode(self):
         msg = self.offboard_control_mode_type()
