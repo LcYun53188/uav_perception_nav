@@ -19,7 +19,9 @@ setup(
     license='BSD-3-Clause',
     entry_points={
         'console_scripts': [
-            'px4_bridge_node = px4_comm_bridge.px4_bridge_node:main'
+            'px4_bridge_node = px4_comm_bridge.px4_bridge_node:main',
+            'px4_mock_node = px4_comm_bridge.px4_mock_node:main',
+            'fake_px4_sensors = px4_comm_bridge.fake_px4_sensors:main',
         ],
     },
 )

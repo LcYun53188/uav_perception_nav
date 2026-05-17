@@ -1,6 +1,8 @@
 from geometry_msgs.msg import PoseStamped, TwistStamped
 from std_msgs.msg import Bool, Int8
 
+from px4_msgs.msg import VehicleStatus
+
 from .converters import (
     fill_offboard_control_mode,
     fill_trajectory_setpoint,
@@ -35,6 +37,11 @@ class Px4ControlBridge:
         self.offboard_mode_pub = None
         self.setpoint_pub = None
         self.vehicle_command_pub = None
+        self.vehicle_status_sub = None
+
+        self.last_px4_nav_state = 0
+        self.last_px4_armed = False
+        self.last_px4_offboard_active = False
 
         # ─────────────────────────────────────────────────────
         # W2-D8: 自动武装状态机初始化
@@ -88,6 +95,12 @@ class Px4ControlBridge:
             self.safety_cb,
             10,
         )
+        self.vehicle_status_sub = self.node.create_subscription(
+            VehicleStatus,
+            self.node.get_parameter('px4_vehicle_status_topic').value,
+            self.vehicle_status_cb,
+            10,
+        )
 
         rate = float(self.node.get_parameter('control_rate_hz').value)
         self.node.create_timer(max(0.01, 1.0 / rate), self.publish_control)
@@ -139,6 +152,19 @@ class Px4ControlBridge:
             self.emergency_active = True
         self._check_and_trigger_emergency()
 
+    def vehicle_status_cb(self, msg: VehicleStatus):
+        self.last_px4_nav_state = int(msg.nav_state)
+        self.last_px4_armed = int(msg.arming_state) == int(VehicleStatus.ARMING_STATE_ARMED)
+        self.last_px4_offboard_active = (
+            int(msg.nav_state) == int(VehicleStatus.NAVIGATION_STATE_OFFBOARD)
+        )
+
+        self.state_machine.on_px4_status_update(
+            armed=self.last_px4_armed,
+            offboard_active=self.last_px4_offboard_active,
+            nav_state=self.last_px4_nav_state,
+        )
+
     def _check_and_trigger_emergency(self):
         if self.emergency_active and not self.emergency_sent:
             self.node.get_logger().error('Safety action triggered!')
@@ -156,21 +182,12 @@ class Px4ControlBridge:
         """
         
         # ─────────────────────────────────────────────────────
-        # 1. 更新 PX4 反馈状态 (从之前收到的 VehicleStatus)
-        # ─────────────────────────────────────────────────────
-        self.state_machine.on_px4_status_update(
-            armed=self.armed,
-            offboard_active=self.offboard_engaged,
-            nav_state=0  # 暂时使用占位符，应从 VehicleStatus 获取
-        )
-        
-        # ─────────────────────────────────────────────────────
-        # 2. 执行状态机 (状态转移 + 动作处理)
+        # 1. 执行状态机 (状态转移 + 动作处理)
         # ─────────────────────────────────────────────────────
         self.state_machine.update()
         
         # ─────────────────────────────────────────────────────
-        # 3. 根据状态机状态发送响应的控制信号
+        # 2. 根据状态机状态发送响应的控制信号
         # ─────────────────────────────────────────────────────
         sm_state = self.state_machine.current_state
         

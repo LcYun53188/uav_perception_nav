@@ -6,9 +6,11 @@ px4_comm_bridge:
     px4_odometry_topic: /px4/vehicle_odometry
     px4_imu_topic: /px4/vehicle_imu
     px4_gps_topic: /fmu/out/sensor_gps
+    px4_attitude_topic: /fmu/out/vehicle_attitude
     pub_odometry: /px4/odom
     pub_imu: /px4/imu
     pub_gps: /gps/fix
+    pub_attitude: /px4/attitude
 
     planner_cmd_topic: /nav/cmd_vel
     planner_pose_topic: /nav/cmd_pose

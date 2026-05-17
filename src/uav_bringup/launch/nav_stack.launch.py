@@ -17,6 +17,7 @@ from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
@@ -34,6 +35,7 @@ def generate_launch_description():
     ])
 
     enable_gps = LaunchConfiguration('enable_gps')
+    launch_dwb = LaunchConfiguration('launch_dwb')
 
     # ─────────────────────────────────────────────────────
     # ① OAK-D 感知层 (RGB-D + IMU 400Hz + Point Cloud 20Hz)
@@ -112,6 +114,11 @@ def generate_launch_description():
             default_value='false',
             description='Enable GPS fusion (dual EKF + NavSat). Set false for GPS-denied.',
         ),
+        DeclareLaunchArgument(
+            'launch_dwb',
+            default_value='false',
+            description='Launch DWB adapter. Requires Nav2 Python modules.',
+        ),
 
         # ─ 启动顺序（感知 → 定位 → 规划/安全/控制） ─
         oakd_perception_launch,
@@ -143,6 +150,7 @@ def generate_launch_description():
             executable='dwb_bridge',
             name='dwb_bridge',
             output='screen',
+            condition=IfCondition(launch_dwb),
             parameters=[
                 PathJoinSubstitution([
                     FindPackageShare('nav_planning'),

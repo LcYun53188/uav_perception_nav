@@ -22,24 +22,24 @@ use_gpu_ceres   : 0
 # Extrinsic parameter between camera built-in IMU and the Camera lenses.
 # Note: This is the internal camera-IMU calibration (cam-to-body), NOT the lever arm offset between the Flight Controller (base_link) and the camera.
 # The Lever Arm offset to the flight controller must be configured in PX4 parameters (EKF2_EV_POS_*) and ROS static TF.
-estimate_extrinsic: 1   # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
+estimate_extrinsic: 0   # Use the configured OAK-D IMU->camera extrinsics; do not estimate while stationary.
 
 body_T_cam0: !!opencv-matrix
    rows: 4
    cols: 4
    dt: d
-   data: [ 1., 0., 0., 0.,
-           0., 1., 0., 0.,
-           0., 0., 1., 0.,
+   data: [ 0., 1.,  0., 0.,
+           1., 0.,  0., 0.,
+           0., 0., -1., 0.,
            0., 0., 0., 1. ]
 
 body_T_cam1: !!opencv-matrix
    rows: 4
    cols: 4
    dt: d
-   data: [ 1., 0., 0., 0.075,
-           0., 1., 0., 0.,
-           0., 0., 1., 0.,
+   data: [ 0., 1.,  0., 0.,
+           1., 0.,  0., 0.075,
+           0., 0., -1., 0.,
            0., 0., 0., 1. ]
 
 #Multiple thread support
@@ -66,7 +66,7 @@ gyr_w: 0.0001       # gyroscope bias random work noise standard deviation.     #
 g_norm: 9.805         # gravity magnitude
 
 #unsynchronization parameters
-estimate_td: 1                      # online estimate time offset between camera and imu
+estimate_td: 0                      # keep fixed until OAK-D image/IMU hardware timestamps are used
 td: 0.00                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
 
 #loop closure parameters

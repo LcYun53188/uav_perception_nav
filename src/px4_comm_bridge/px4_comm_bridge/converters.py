@@ -1,6 +1,7 @@
 import math
 
 from builtin_interfaces.msg import Time
+from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu, NavSatFix, NavSatStatus
 
@@ -63,6 +64,57 @@ def vehicle_imu_to_ros(msg) -> Imu:
         pass
 
     return imu
+
+
+def vehicle_attitude_to_pose(msg) -> PoseWithCovarianceStamped:
+    """Convert PX4 VehicleAttitude to a ROS pose orientation measurement.
+
+    PX4 VehicleAttitude stores q as Hamilton [w, x, y, z] for FRD body in
+    NED earth. The static NED->ENU and FRD->FLU transforms produce a ROS ENU
+    orientation for base_link. Position is intentionally unused by EKF config.
+    """
+    pose = PoseWithCovarianceStamped()
+    pose.header.frame_id = 'odom'
+
+    try:
+        pose.header.stamp = us_to_time(int(msg.timestamp))
+    except Exception:
+        pass
+
+    try:
+        qw, qx, qy, qz = [float(value) for value in msg.q]
+        # q_enu_flu = q_ned_to_enu * q_ned_frd * q_frd_to_flu
+        # q_ned_to_enu = [0, sqrt(1/2), sqrt(1/2), 0]
+        # q_frd_to_flu = [0, 1, 0, 0]
+        s = math.sqrt(0.5)
+        ros_qw = s * (qw + qz)
+        ros_qx = s * (qx + qy)
+        ros_qy = s * (qx - qy)
+        ros_qz = s * (qw - qz)
+        norm = math.sqrt(
+            ros_qw * ros_qw + ros_qx * ros_qx + ros_qy * ros_qy + ros_qz * ros_qz
+        )
+        if norm > 0.0:
+            ros_qw /= norm
+            ros_qx /= norm
+            ros_qy /= norm
+            ros_qz /= norm
+        pose.pose.pose.orientation.w = ros_qw
+        pose.pose.pose.orientation.x = ros_qx
+        pose.pose.pose.orientation.y = ros_qy
+        pose.pose.pose.orientation.z = ros_qz
+    except Exception:
+        pose.pose.pose.orientation.w = 1.0
+
+    covariance = [0.0] * 36
+    covariance[0] = 1e6
+    covariance[7] = 1e6
+    covariance[14] = 1e6
+    covariance[21] = 0.05
+    covariance[28] = 0.05
+    covariance[35] = 1e6
+    pose.pose.covariance = covariance
+    return pose
 
 
 def planner_twist_to_ned_velocity(cmd_msg, input_frame: str):
@@ -146,4 +198,3 @@ def sensor_gps_to_navsatfix(msg) -> NavSatFix:
     fix.position_covariance_type = NavSatFix.COVARIANCE_TYPE_DIAGONAL_KNOWN
 
     return fix
-

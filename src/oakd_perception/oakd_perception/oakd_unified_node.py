@@ -107,6 +107,7 @@ class OakDUnifiedNode(Node):
         self.left_queue = None
         self.right_queue = None
         self.pipeline = dai.Pipeline()
+        self.device_time_base = None
 
         # 设置管道
         try:
@@ -165,6 +166,52 @@ class OakDUnifiedNode(Node):
             f"fov_h={self.fov_h_deg:.2f}deg, fov_v={self.fov_v_deg:.2f}deg, "
             f"margin={self.fov_boundary_margin_m:.3f}m"
         )
+
+    def _to_seconds(self, timestamp):
+        """Convert DepthAI timestamp objects to floating-point seconds."""
+        if timestamp is None:
+            return None
+        if hasattr(timestamp, "total_seconds"):
+            return timestamp.total_seconds()
+        try:
+            return float(timestamp)
+        except (TypeError, ValueError):
+            return None
+
+    def _extract_device_time(self, *objects):
+        """Return the first available DepthAI device timestamp in seconds."""
+        for obj in objects:
+            if obj is None:
+                continue
+            for method_name in ("getTimestampDevice", "getTimestamp"):
+                method = getattr(obj, method_name, None)
+                if method is None:
+                    continue
+                try:
+                    seconds = self._to_seconds(method())
+                except Exception:
+                    seconds = None
+                if seconds is not None:
+                    return seconds
+        return None
+
+    def _stamp_from_device_time(self, device_seconds):
+        """Map DepthAI monotonic device time onto the ROS clock domain."""
+        now = self.get_clock().now().to_msg()
+        now_seconds = float(now.sec) + float(now.nanosec) * 1e-9
+
+        if device_seconds is None:
+            return now
+
+        if self.device_time_base is None:
+            self.device_time_base = (device_seconds, now_seconds)
+
+        base_device, base_ros = self.device_time_base
+        stamp_seconds = base_ros + (device_seconds - base_device)
+        stamp = Header().stamp
+        stamp.sec = int(stamp_seconds)
+        stamp.nanosec = int((stamp_seconds - stamp.sec) * 1e9)
+        return stamp
 
     def setup_pipeline(self):
         """Configure the DAI pipeline for IMU and depth."""
@@ -249,11 +296,13 @@ class OakDUnifiedNode(Node):
 
         monoLeft.out.link(stereo.left)
         monoRight.out.link(stereo.right)
-        
+
         if self.enable_image_publish:
-            self.left_queue = monoLeft.out.createOutputQueue()
-            self.right_queue = monoRight.out.createOutputQueue()
-            
+            # VINS expects calibrated stereo images. Publish StereoDepth's
+            # rectified outputs instead of the raw wide-FOV mono streams.
+            self.left_queue = stereo.rectifiedLeft.createOutputQueue()
+            self.right_queue = stereo.rectifiedRight.createOutputQueue()
+
         self.depth_queue = stereo.depth.createOutputQueue()
         self.get_logger().info("深度管道配置完成")
 
@@ -295,7 +344,6 @@ class OakDUnifiedNode(Node):
             for packet in imu_data.packets:
                 imu_msg = Imu()
                 imu_msg.header = Header()
-                imu_msg.header.stamp = self.get_clock().now().to_msg()
                 imu_msg.header.frame_id = self.imu_frame_id
 
                 accel_data = getattr(packet, "acceleroMeter", None)
@@ -309,6 +357,11 @@ class OakDUnifiedNode(Node):
                     imu_msg.angular_velocity.x = float(getattr(gyro_data, "x", 0.0))
                     imu_msg.angular_velocity.y = float(getattr(gyro_data, "y", 0.0))
                     imu_msg.angular_velocity.z = float(getattr(gyro_data, "z", 0.0))
+
+                device_seconds = self._extract_device_time(
+                    packet, accel_data, gyro_data
+                )
+                imu_msg.header.stamp = self._stamp_from_device_time(device_seconds)
 
                 imu_msg.linear_acceleration_covariance = [
                     0.01,
@@ -403,17 +456,21 @@ class OakDUnifiedNode(Node):
         try:
             inLeft = self.left_queue.tryGet()
             inRight = self.right_queue.tryGet()
-            
-            if inLeft is not None or inRight is not None:
-                stamp = self.get_clock().now().to_msg()
-                
-                if inLeft is not None:
-                    left_msg = self.create_image_msg(inLeft.getCvFrame(), self.pointcloud_frame_id, stamp)
-                    self.left_pub.publish(left_msg)
-                    
-                if inRight is not None:
-                    right_msg = self.create_image_msg(inRight.getCvFrame(), self.pointcloud_frame_id, stamp)
-                    self.right_pub.publish(right_msg)
+
+            if inLeft is None or inRight is None:
+                return
+
+            device_seconds = self._extract_device_time(inLeft, inRight)
+            stamp = self._stamp_from_device_time(device_seconds)
+
+            left_msg = self.create_image_msg(
+                inLeft.getCvFrame(), self.pointcloud_frame_id, stamp
+            )
+            right_msg = self.create_image_msg(
+                inRight.getCvFrame(), self.pointcloud_frame_id, stamp
+            )
+            self.left_pub.publish(left_msg)
+            self.right_pub.publish(right_msg)
         except Exception as e:
             self.get_logger().warn(f"图像发布失败: {e}")
 

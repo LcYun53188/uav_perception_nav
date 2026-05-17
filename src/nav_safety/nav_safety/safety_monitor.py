@@ -35,6 +35,8 @@ class SafetyMonitor(Node):
         self.declare_parameter('odometry_timeout_sec', 1.0)
         self.declare_parameter('px4_state_timeout_sec', 1.0)
         self.declare_parameter('check_rate_hz', 10.0)
+        self.declare_parameter('pointcloud_topic', '/oakd/points')
+        self.declare_parameter('odometry_topic', '/odometry/local')
 
         self.emergency_pub = self.create_publisher(Bool, '/nav/emergency', 10)
         self.status_pub = self.create_publisher(Int8, '/nav/safety_status', 10)
@@ -46,10 +48,10 @@ class SafetyMonitor(Node):
         # 话题订阅
         # ─────────────────────────────────────────────────────
         self.pc_sub = self.create_subscription(
-            PointCloud2, '/oakd/points', self.pc_cb, 10
+            PointCloud2, self.get_parameter('pointcloud_topic').value, self.pc_cb, 10
         )
         self.odom_sub = self.create_subscription(
-            Odometry, '/odometry/filtered', self.odometry_cb, 10
+            Odometry, self.get_parameter('odometry_topic').value, self.odometry_cb, 10
         )
         self.px4_status_sub = self.create_subscription(
             VehicleStatus, '/fmu/out/vehicle_status', self.px4_status_cb, 10
@@ -166,12 +168,15 @@ class SafetyMonitor(Node):
         if time_since_status > px4_timeout:
             return self.LEVEL_CRITICAL
         
-        # 检查臂装状态和模式
-        # VehicleStatus.armed_state: 0 = DISARMED, 1 = ARMED
-        # VehicleStatus.nav_state: 14 = OFFBOARD
-        
-        is_armed = self.last_px4_status.armed_state == 1
-        is_offboard = self.last_px4_status.nav_state == 14
+        arming_state = getattr(
+            self.last_px4_status,
+            'arming_state',
+            getattr(self.last_px4_status, 'armed_state', 0),
+        )
+        is_armed = arming_state == VehicleStatus.ARMING_STATE_ARMED
+        is_offboard = (
+            self.last_px4_status.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD
+        )
         
         if not is_armed:
             return self.LEVEL_WARN  # 未武装但已连接

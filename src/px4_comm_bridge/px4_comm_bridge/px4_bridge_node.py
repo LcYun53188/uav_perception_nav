@@ -1,4 +1,5 @@
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 
 from .control_bridge import Px4ControlBridge
@@ -9,18 +10,22 @@ try:
         OffboardControlMode,
         SensorGps,
         TrajectorySetpoint,
+        VehicleAttitude,
         VehicleCommand,
         VehicleImu,
         VehicleOdometry,
+        VehicleStatus,
     )
     PX4_MSGS = True
 except Exception:
     OffboardControlMode = None
     SensorGps = None
     TrajectorySetpoint = None
+    VehicleAttitude = None
     VehicleCommand = None
     VehicleOdometry = None
     VehicleImu = None
+    VehicleStatus = None
     PX4_MSGS = False
 
 
@@ -36,9 +41,11 @@ class Px4CommBridge(Node):
         self.declare_parameter('px4_odometry_topic', '/px4/vehicle_odometry')
         self.declare_parameter('px4_imu_topic', '/px4/vehicle_imu')
         self.declare_parameter('px4_gps_topic', '/fmu/out/sensor_gps')
+        self.declare_parameter('px4_attitude_topic', '/fmu/out/vehicle_attitude')
         self.declare_parameter('pub_odometry', '/px4/odom')
         self.declare_parameter('pub_imu', '/px4/imu')
         self.declare_parameter('pub_gps', '/gps/fix')
+        self.declare_parameter('pub_attitude', '/px4/attitude')
 
         # Control bridge parameters
         self.declare_parameter('planner_cmd_topic', '/nav/cmd_vel')
@@ -49,6 +56,7 @@ class Px4CommBridge(Node):
         self.declare_parameter('fmu_offboard_mode_topic', '/fmu/in/offboard_control_mode')
         self.declare_parameter('fmu_trajectory_topic', '/fmu/in/trajectory_setpoint')
         self.declare_parameter('fmu_command_topic', '/fmu/in/vehicle_command')
+        self.declare_parameter('px4_vehicle_status_topic', '/fmu/out/vehicle_status')
 
         self.declare_parameter('control_rate_hz', 20.0)
         self.declare_parameter('input_velocity_frame', 'enu')
@@ -64,6 +72,7 @@ class Px4CommBridge(Node):
             VehicleOdometry,
             VehicleImu,
             SensorGps,
+            VehicleAttitude,
         )
         self.control_bridge = Px4ControlBridge(
             self,
@@ -91,7 +100,8 @@ def main(args=None):
     node = Px4CommBridge()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     node.destroy_node()
-    rclpy.shutdown()
+    if rclpy.ok():
+        rclpy.shutdown()

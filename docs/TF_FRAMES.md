@@ -217,8 +217,9 @@ PX4 飞控的 IMU 传感器物理上位于飞控板（FCU）中心，即 `base_l
 
 | 话题 | 消息类型 | header.frame_id | 发布者 |
 |------|----------|-----------------|--------|
-| `/px4/imu` | `sensor_msgs/Imu` | `base_link` | px4_comm_bridge |
-| `/vio/odometry` | `nav_msgs/Odometry` | `vins_world` | VINS-Fusion (remap) |
+| `/px4/imu` | `sensor_msgs/Imu` | `base_link` | px4_comm_bridge，角速度与线加速度 |
+| `/px4/attitude` | `geometry_msgs/PoseWithCovarianceStamped` | `odom` | px4_comm_bridge，PX4 VehicleAttitude 转 ROS ENU 姿态 |
+| `/vio/odometry` | `nav_msgs/Odometry` | `odom` | VINS-Fusion (remap, child: `oakd_imu_link`) |
 | `/gps/fix` | `sensor_msgs/NavSatFix` | `gps_link` | px4_comm_bridge |
 | `/odometry/local` | `nav_msgs/Odometry` | `odom` | ekf_filter_node_odom |
 | `/odometry/global` | `nav_msgs/Odometry` | `map` | ekf_filter_node_map |

@@ -29,9 +29,11 @@ def generate_launch_description():
             emulate_tty=True,
             parameters=[{'use_sim_time': False},
                         {'config_file': config_file},
-                        {'world_frame_id': 'vins_world'},
-                        {'body_frame_id': 'vins_body'},
-                        {'camera_frame_id': 'vins_camera'}],
+                        # Publish VINS odometry in the main localization frame tree.
+                        # The VINS TF stream is still isolated below, so EKF owns /tf.
+                        {'world_frame_id': 'odom'},
+                        {'body_frame_id': 'oakd_imu_link'},
+                        {'camera_frame_id': 'oakd_camera_optical_frame'}],
             remappings=[
                 # Isolate VINS TF output to avoid conflict with EKF
                 ('/tf', '/vins/tf'),
