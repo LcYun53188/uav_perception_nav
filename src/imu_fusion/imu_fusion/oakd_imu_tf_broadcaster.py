@@ -9,7 +9,7 @@ class OakDImuTfBroadcaster(Node):
     def __init__(self):
         super().__init__('oakd_imu_tf_broadcaster')
 
-        self.declare_parameter('input_topic', '/oakd/imu')
+        self.declare_parameter('input_topic', '/oakd/imu/preview_fusion')
         self.declare_parameter('parent_frame', 'map')
         self.declare_parameter('child_frame', 'oakd_imu_link')
         self.declare_parameter('use_message_frame_id', False)

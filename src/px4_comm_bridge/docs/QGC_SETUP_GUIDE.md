@@ -244,7 +244,7 @@ ros2 node list | grep px4_comm_bridge
 
 # 确认数据桥输出
 ros2 topic hz /px4/odom      # 应有数据输出
-ros2 topic hz /imu            # 应有数据输出
+ros2 topic hz /px4/imu            # 应有数据输出
 ros2 topic echo /px4/odom --once
 ```
 
@@ -278,7 +278,7 @@ ros2 topic pub /nav/cmd_vel geometry_msgs/msg/TwistStamped \
 | 订阅 | `/px4/vehicle_odometry` | — | `px4_msgs/VehicleOdometry` | PX4 发布频率 ~50 Hz |
 | 订阅 | `/px4/vehicle_imu` | — | `px4_msgs/VehicleImu` | PX4 发布频率 ~200 Hz |
 | 发布 | — | `/px4/odom` | `nav_msgs/Odometry` | frame: `map` → `base_link` |
-| 发布 | — | `/imu` | `sensor_msgs/Imu` | frame: `imu_link` |
+| 发布 | — | `/px4/imu` | `sensor_msgs/Imu` | frame: `imu_link` |
 
 ### 控制桥（ROS → PX4）
 

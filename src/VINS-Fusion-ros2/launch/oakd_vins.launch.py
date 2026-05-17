@@ -28,7 +28,17 @@ def generate_launch_description():
             output='screen',
             emulate_tty=True,
             parameters=[{'use_sim_time': False},
-                        {'config_file': config_file}],
+                        {'config_file': config_file},
+                        {'world_frame_id': 'vins_world'},
+                        {'body_frame_id': 'vins_body'},
+                        {'camera_frame_id': 'vins_camera'}],
+            remappings=[
+                # Isolate VINS TF output to avoid conflict with EKF
+                ('/tf', '/vins/tf'),
+                ('/tf_static', '/vins/tf_static'),
+                # Align odometry topic for EKF consumption
+                ('odometry', '/vio/odometry'),
+            ],
         ),
         
         # RViz2 for visualization

@@ -1,5 +1,17 @@
 ekf_filter_node:
   ros__parameters:
+    # Coordinate frames
+    # -----------------
+    # base_link_frame: Represents the center of the UAV (Flight Controller / FCU).
+    #
+    # Crucial Calibration Note for Camera-FCU Spatial Relationship:
+    # 1. ROS 2 TF Frame: Publish a static TF (base_link -> oakd_imu_link) for physical offset [dx, dy, dz] (ENU: X-forward, Y-left, Z-up).
+    # 2. PX4 Autopilot EKF2 Lever Arm Parameters:
+    #    You MUST set the camera offset in QGC parameters in NED coordinate (X-forward, Y-right, Z-down) to avoid lever-arm drift:
+    #      - EKF2_EV_POS_X = dx
+    #      - EKF2_EV_POS_Y = -dy
+    #      - EKF2_EV_POS_Z = -dz
+    # -----------------
     map_frame: map
     odom_frame: odom
     base_link_frame: base_link
@@ -8,7 +20,7 @@ ekf_filter_node:
     sensor_timeout: 0.1
     two_d_mode: false
     publish_tf: true
-    imu0: /imu
+    imu0: /px4/imu
     imu0_config:
       - false  # x
       - false  # y

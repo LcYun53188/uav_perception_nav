@@ -1,8 +1,8 @@
 from launch import LaunchDescription
-from launch.substitutions import PathJoinSubstitution
+from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
@@ -19,6 +19,8 @@ def generate_launch_description():
         'px4_comm_bridge.yaml',
     ])
 
+    enable_gps = LaunchConfiguration('enable_gps')
+
     ekf_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
@@ -26,10 +28,16 @@ def generate_launch_description():
                 'launch',
                 'ekf_launch.py',
             ])
-        )
+        ),
+        launch_arguments={'enable_gps': enable_gps}.items(),
     )
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'enable_gps',
+            default_value='false',
+            description='Enable GPS fusion (dual EKF + NavSat). Set false for GPS-denied.',
+        ),
         ekf_launch,
         Node(
             package='nav_mapping',

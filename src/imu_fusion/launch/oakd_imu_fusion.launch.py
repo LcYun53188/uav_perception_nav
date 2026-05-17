@@ -24,7 +24,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('raw_topic', default_value='/oakd/imu/raw'),
-        DeclareLaunchArgument('fused_topic', default_value='/oakd/imu'),
+        DeclareLaunchArgument('fused_topic', default_value='/oakd/imu/fused'),
         DeclareLaunchArgument('frame_id', default_value='oakd_imu_link'),
         DeclareLaunchArgument('parent_frame', default_value='map'),
         DeclareLaunchArgument('imu_frequency', default_value='400'),

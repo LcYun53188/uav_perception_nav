@@ -32,7 +32,7 @@ class ImuTfBroadcaster(Node):
     def __init__(self):
         super().__init__('imu_tf_broadcaster')
 
-        self.declare_parameter('input_topic', '/imu')
+        self.declare_parameter('input_topic', '/oakd/imu/fused')
         self.declare_parameter('parent_frame', 'map')
         self.declare_parameter('child_frame', 'imu_link')
         self.declare_parameter('use_message_frame_id', False)

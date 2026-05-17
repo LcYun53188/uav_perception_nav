@@ -106,7 +106,7 @@ echo ""
 
 ros2 launch imu_fusion imu_fusion.launch.py \
     raw_topic_0:=/oakd/imu/raw \
-    fused_topic_0:=/imu \
+    fused_topic_0:=/oakd/imu/fused \
     frame_id_0:=imu_link \
     parent_frame:=map &
 FUSION_PID=$!
@@ -120,13 +120,13 @@ echo ""
 echo "📍 [步骤7] 验证融合后的IMU..."
 echo ""
 
-if echo "$(ros2 topic list)" | grep -q "/imu"; then
-    echo "  ✅ /imu (融合) 已发布"
+if echo "$(ros2 topic list)" | grep -q "/oakd/imu/fused"; then
+    echo "  ✅ /oakd/imu/fused (融合) 已发布"
     echo ""
     echo "  融合后IMU数据示例:"
-    timeout 2s ros2 topic echo /imu --csv 2>/dev/null | head -3 || true
+    timeout 2s ros2 topic echo /oakd/imu/fused --csv 2>/dev/null | head -3 || true
 else
-    echo "  ❌ /imu (融合) 未发布"
+    echo "  ❌ /oakd/imu/fused (融合) 未发布"
 fi
 
 echo ""

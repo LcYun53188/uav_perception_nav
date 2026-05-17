@@ -10,7 +10,7 @@ class OakDImuFusionNode(Node):
         super().__init__('oakd_imu_fusion_node')
 
         self.declare_parameter('input_topic', '/oakd/imu/raw')
-        self.declare_parameter('output_topic', '/oakd/imu')
+        self.declare_parameter('output_topic', '/oakd/imu/preview_fusion')
         self.declare_parameter('frame_id', 'oakd_imu_link')
         self.declare_parameter('complementary_alpha', 0.98)
         self.declare_parameter('fallback_rate_hz', 400.0)

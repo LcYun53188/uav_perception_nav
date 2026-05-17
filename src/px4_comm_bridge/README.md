@@ -26,7 +26,7 @@ PX4 与 ROS 2 之间的统一桥接包，负责 PX4 数据/控制双向桥接。
 发布：
 
 - `nav_msgs/msg/Odometry`（默认 `/px4/odom`）
-- `sensor_msgs/msg/Imu`（默认 `/imu`）
+- `sensor_msgs/msg/Imu`（默认 `/px4/imu`）
 
 ### 2.2 控制桥（ROS -> PX4）
 
@@ -60,7 +60,7 @@ PX4 与 ROS 2 之间的统一桥接包，负责 PX4 数据/控制双向桥接。
 | `px4_odometry_topic` | `/px4/vehicle_odometry` | PX4 里程计输入 |
 | `px4_imu_topic` | `/px4/vehicle_imu` | PX4 IMU 输入 |
 | `pub_odometry` | `/px4/odom` | Odometry 输出 |
-| `pub_imu` | `/imu` | Imu 输出 |
+| `pub_imu` | `/px4/imu` | Imu 输出 |
 | `planner_cmd_topic` | `/nav/cmd_vel` | 规划速度输入 |
 | `planner_pose_topic` | `/nav/cmd_pose` | 规划位姿输入（预留） |
 | `planner_emergency_topic` | `/nav/emergency` | 应急输入 |
@@ -90,7 +90,7 @@ ros2 run px4_comm_bridge px4_bridge_node --ros-args --params-file "$PARAM_FILE"
 
 ```bash
 ros2 node list | grep px4_comm_bridge
-ros2 topic list | grep -E "^/px4/odom$|^/imu$|^/fmu/in/offboard_control_mode$|^/fmu/in/trajectory_setpoint$|^/fmu/in/vehicle_command$"
+ros2 topic list | grep -E "^/px4/odom$|^/px4/imu$|^/fmu/in/offboard_control_mode$|^/fmu/in/trajectory_setpoint$|^/fmu/in/vehicle_command$"
 ```
 
 ## 6. 与 uav_bringup 的关系

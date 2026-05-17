@@ -37,7 +37,7 @@ class Px4CommBridge(Node):
         self.declare_parameter('px4_imu_topic', '/px4/vehicle_imu')
         self.declare_parameter('px4_gps_topic', '/fmu/out/sensor_gps')
         self.declare_parameter('pub_odometry', '/px4/odom')
-        self.declare_parameter('pub_imu', '/imu')
+        self.declare_parameter('pub_imu', '/px4/imu')
         self.declare_parameter('pub_gps', '/gps/fix')
 
         # Control bridge parameters

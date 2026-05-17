@@ -41,7 +41,7 @@ def vehicle_odometry_to_ros(msg) -> Odometry:
 
 def vehicle_imu_to_ros(msg) -> Imu:
     imu = Imu()
-    imu.header.frame_id = 'imu_link'
+    imu.header.frame_id = 'base_link'
 
     try:
         imu.header.stamp = us_to_time(int(msg.timestamp))

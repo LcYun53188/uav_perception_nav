@@ -19,7 +19,9 @@ use_gpu         : 0
 use_gpu_acc_flow: 0
 use_gpu_ceres   : 0
 
-# Extrinsic parameter between IMU and Camera.
+# Extrinsic parameter between camera built-in IMU and the Camera lenses.
+# Note: This is the internal camera-IMU calibration (cam-to-body), NOT the lever arm offset between the Flight Controller (base_link) and the camera.
+# The Lever Arm offset to the flight controller must be configured in PX4 parameters (EKF2_EV_POS_*) and ROS static TF.
 estimate_extrinsic: 1   # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
 
 body_T_cam0: !!opencv-matrix

@@ -37,8 +37,9 @@ def launch_setup(context, *args, **kwargs):
             )
         )
     
-    # Always launch fusion and TF broadcaster nodes
-    nodes.extend([
+    # Always launch fusion node (filtering only, no TF)
+    # TF is now handled by EKF (odom→base_link) + static transforms (base_link→oakd_imu_link)
+    nodes.append(
         Node(
             package='imu_fusion',
             executable='imu_fusion_node',
@@ -50,26 +51,15 @@ def launch_setup(context, *args, **kwargs):
                 {'frame_id': frame_id_0},
             ],
         ),
-        Node(
-            package='imu_fusion',
-            executable='imu_tf_broadcaster',
-            name='imu_tf_broadcaster_0',
-            output='screen',
-            parameters=[
-                {'input_topic': fused_topic_0},
-                {'parent_frame': parent_frame},
-                {'child_frame': frame_id_0},
-            ],
-        ),
-    ])
+    )
     
     return nodes
 
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument('raw_topic_0', default_value='/imu/raw'),
-        DeclareLaunchArgument('fused_topic_0', default_value='/imu'),
+        DeclareLaunchArgument('raw_topic_0', default_value='/oakd/imu/raw'),
+        DeclareLaunchArgument('fused_topic_0', default_value='/oakd/imu/fused'),
         DeclareLaunchArgument('frame_id_0', default_value='oakd_imu_link'),
         DeclareLaunchArgument('parent_frame', default_value='map'),
         DeclareLaunchArgument('imu_frequency', default_value='400'),

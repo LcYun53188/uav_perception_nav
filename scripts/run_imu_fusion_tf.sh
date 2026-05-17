@@ -7,7 +7,7 @@ set -e
 WORKSPACE="/home/nuc/Program/uav_vision_ws"
 SOURCE_SETUP="${WORKSPACE}/install/setup.bash"
 IMU_RAW_TOPIC="/oakd/imu/raw"
-IMU_FUSED_TOPIC="/imu"
+IMU_FUSED_TOPIC="/oakd/imu/fused"
 IMU_FRAME_ID="oakd_imu_link"
 IMU_PARENT_FRAME="map"
 

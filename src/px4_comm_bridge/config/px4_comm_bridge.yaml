@@ -7,7 +7,7 @@ px4_comm_bridge:
     px4_imu_topic: /px4/vehicle_imu
     px4_gps_topic: /fmu/out/sensor_gps
     pub_odometry: /px4/odom
-    pub_imu: /imu
+    pub_imu: /px4/imu
     pub_gps: /gps/fix
 
     planner_cmd_topic: /nav/cmd_vel
