@@ -113,19 +113,15 @@ Error: X_LINK_DEVICE_ALREADY_IN_USE
                   含 orientation 四元数
 ```
 
-### 3. imu_tf_broadcaster
+### 3. TF 坐标变换
 
-**职责**：
-
-- 订阅融合后的 IMU（`/imu`）；
-**广播变换**：
+TF 变换由 EKF 节点和静态变换发布器共同负责：
 
 ```
-map (全局坐标系)
-  └── oakd_imu_link (IMU 融合坐标系)
-     └── oakd_camera_optical_frame (相机光学坐标系)
-       └── ...
+map → odom → base_link → oakd_imu_link → oakd_camera_optical_frame
 ```
+
+详细说明见 [TF_FRAMES.md](./TF_FRAMES.md)。
 
 ---
 
@@ -143,12 +139,12 @@ map (全局坐标系)
    ├── 订阅 /oakd/imu/raw
    └── 发布融合后 /imu
 
-3. 启动 imu_tf_broadcaster
-   ├── 订阅 /imu
-   └── 广播 map → oakd_imu_link
+3. 启动 EKF 节点
+   ├── 融合 VIO + IMU
+   └── 发布 odom → base_link (TF)
 
 4. 启动 RViz（可视化）
-  ├── 订阅 /oakd/points_filtered
+   ├── 订阅 /oakd/points_filtered
    ├── 订阅 /tf
    └── 显示点云与 TF 树
 ```
@@ -186,14 +182,21 @@ map (全局坐标系)
 | `pointcloud_frequency` | int | 20 | 点云频率（Hz） |
 
 
-map
-   └── oakd_imu_link (融合 IMU 确定的姿态)
-         └── oakd_camera_optical_frame (相机光学中心, 可选)
+### TF 坐标系架构（v2.0）
 
+```
+map → odom → base_link → oakd_imu_link → oakd_camera_optical_frame
+                 │
+                 └→ gps_link
+```
 
-- **map**：全局世界坐标系（由 `imu_fusion` 定义为参考）；
-- **oakd_imu_link**：IMU 经融合后的坐标系，包含 orientation，是 `imu_tf_broadcaster` 的默认 child frame；
-- **oakd_camera_optical_frame**：OAK-D 相机的光学坐标系，点云参考帧。
+- **map**：全局固定参考系（ENU 东北天）
+- **odom**：里程计累计参考系
+- **base_link**：无人机机身中心（飞控 FCU 质心）
+- **oakd_imu_link**：OAK-D 相机 IMU 中心
+- **oakd_camera_optical_frame**：相机光学中心，点云参考帧
+
+详见 [TF_FRAMES.md](./TF_FRAMES.md)。
 
 ---
 
@@ -351,6 +354,7 @@ Error: X_LINK_DEVICE_ALREADY_IN_USE
 
 ## 参考资源
 
+- [TF_FRAMES.md](./TF_FRAMES.md) — TF 坐标变换系统说明
 - [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) — 快速命令参考
 - [INSTALLATION.md](./INSTALLATION.md) — 安装与构建
 - [../README.md](../README.md) — 主文档

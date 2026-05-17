@@ -6,8 +6,9 @@
 
 当前仓库的状态是“开发/仿真可用，硬件验收待补齐”：
 
-- OAK-D 统一节点、IMU 融合、TF 广播、局部建图、安全监控、PX4 桥接与启动编排已实现，并通过系统级验证；
+- OAK-D 统一节点、IMU 融合、VINS-Fusion 视觉里程计、双级 EKF 状态融合、局部建图、安全监控、PX4 桥接与启动编排已实现；
 - 导航栈已经形成点云 → 占用栅格 → `/nav/cmd_vel` → 安全监控 → PX4 桥接的完整管道；
+- TF 树采用双级 EKF 架构，支持 GPS / 无 GPS 两种模式切换（`enable_gps` 参数）；
 - `local_planner` 仍是基础前向速度策略，不是障碍物感知的成熟局部规划器；
 - `px4_msgs` 为可选依赖，缺失时桥接层会降级运行；
 - 真机飞行验收、障碍物感知规划与 3D 导航主方案仍在后续迭代中。
@@ -131,18 +132,21 @@ source install/setup.bash
       ↓
   DAI Pipeline (单进程)
    ├─ IMU 采样 → /oakd/imu/raw  (400Hz)
-   └─ 深度处理 → /oakd/points    (~20Hz)
+   ├─ 左右目图像 → /oakd/left/image_raw, /oakd/right/image_raw
+   └─ 深度处理 → /oakd/points, /oakd/points_filtered  (~20Hz)
 
-上游：/oakd/imu/raw -> imu_fusion -> /imu (融合) -> imu_tf_broadcaster -> TF(map -> oakd_imu_link)
-
-导航链路：/oakd/points_filtered -> /local_map/occupancy -> /nav/cmd_vel -> /nav/emergency -> px4_comm_bridge -> PX4
+VIO 链路：   图像+IMU → VINS-Fusion → /vio/odometry
+定位链路：   /vio/odometry + /px4/imu [+ /gps/fix] → 双级 EKF → TF(map→odom→base_link)
+导航链路：   /oakd/points_filtered → /local_map/occupancy → /nav/cmd_vel → px4_comm_bridge → PX4
 ```
+
+TF 树：`map → odom → base_link → oakd_imu_link → oakd_camera_optical_frame`
 
 要点：
 - 将 IMU 与深度放在同一进程（统一节点）避免 USB/设备冲突；
-- `imu_fusion` 负责从原始 IMU 出来姿态估计并广播 `map -> oakd_imu_link`；
-- RViz 的 `Fixed Frame` 决定点云是否随 IMU 姿态旋转（`map` 时会跟随 TF）。
-- 导航栈已经打通数据流，但 `local_planner` 仍是基础前向速度策略，`px4_comm_bridge` 负责 PX4 数据/控制桥接，二者都尚未替代成熟避障规划器与飞控状态机。
+- 双级 EKF 架构：`ekf_odom` 发布 `odom→base_link`，`ekf_map` 发布 `map→odom`（GPS 校正）；
+- 无 GPS 模式下 `map→odom` 为静态恒等变换，局部避障照常工作；
+- 详细 TF 说明见 [docs/TF_FRAMES.md](./docs/TF_FRAMES.md)。
 
 ---
 
@@ -292,34 +296,28 @@ chmod +x scripts/run_complete_system.sh
 2. 终端 B：再运行 `./scripts/run_imu_fusion_tf.sh`；
 3. 等待 `map -> oakd_imu_link` 可见后，再打开 RViz 观察 `/oakd/points`。
 
-### 4.5 导航栈（已实现，基础策略）
+### 4.5 导航栈
 
-导航栈已经可通过统一入口启动，并完成以下链路：点云输入 → 局部占用栅格 → 速度命令 → 安全监控 → PX4 桥接。
-
-启动示例：
+导航栈通过统一入口启动，支持 GPS / 无 GPS 两种模式：
 
 ```bash
-source install/setup.bash
+# 无 GPS 模式（默认）
 ros2 launch uav_bringup nav_stack.launch.py
+
+# GPS 模式
+ros2 launch uav_bringup nav_stack.launch.py enable_gps:=true
 ```
 
 启动后的预期行为：
 
-- `local_map_builder` 订阅 `/oakd/points_filtered`，发布 `/local_map/occupancy`；
-- `local_planner` 消费局部栅格并持续发布 `/nav/cmd_vel`；
+- `ekf_filter_node_odom` 融合 VIO + IMU，发布 `odom→base_link` TF 和 `/odometry/local`；
+- GPS 模式下 `ekf_filter_node_map` 额外融合 GPS，发布 `map→odom` TF 和 `/odometry/global`；
+- `local_map_builder` 订阅 `/oakd/points_filtered`，通过 TF 投影生成 `/local_map/occupancy`；
+- `local_planner` 消费局部栅格并发布 `/nav/cmd_vel`；
 - `safety_monitor` 订阅 `/oakd/points` 并发布 `/nav/emergency`；
-- `px4_comm_bridge` 节点（可执行 `px4_bridge_node`）订阅速度与安全信号，并在 PX4 可用时发布 `fmu/in/*` 消息。
+- `px4_comm_bridge` 桥接到 PX4，不可用时降级运行。
 
-如果你在本机没有 PX4 消息依赖，`px4_comm_bridge` 会进入降级模式，这是预期行为。
-
-当前导航栈节点：
-
-- `/local_map_builder` — 点云投影与占用栅格生成
-- `/local_planner` — 基础前向速度策略
-- `/safety_monitor` — 点云超时与点密度监测
-- `/px4_comm_bridge` — PX4 数据/控制桥接与看门狗
-
-注意：这条链路已验证可用，但 `local_planner` 仍是原型级策略，后续应替换为真正的障碍物感知局部规划器。
+注意：`local_planner` 仍是原型级前向速度策略，后续应替换为成熟的障碍物感知局部规划器。
 
 ### 4.6 一键验证顺序
 
@@ -439,39 +437,31 @@ pkill -9 -f "oakd"
 
 ## 8. 坐标系与 TF 说明
 
-常用 frame：
+TF 树（双级 EKF 架构）：
 
-- `oakd_link`：深度点云发布时的相机机体坐标系；
-- `oakd_imu_link`：IMU 原始数据和融合 TF 链中的默认 frame；
-- `map`：全局世界坐标系（由上层定位或 `imu_fusion` 提供）。
-- `camera_depth_optical_frame`：`nav_mapping` 中默认使用的点云源帧之一，具体取决于启动配置。
+```
+map → odom → base_link → oakd_imu_link → oakd_camera_optical_frame
+                 │
+                 └→ gps_link
+```
 
-注意：ROS 中位置单位为米（m），但节点参数中 `min_depth`/`max_depth` 以毫米（mm）表示（换算 1m = 1000mm）。
+| 坐标系 | 含义 |
+|--------|------|
+| `map` | 全局固定参考系（ENU 东北天） |
+| `odom` | 里程计累计参考系 |
+| `base_link` | 无人机机身中心（飞控 FCU 质心） |
+| `oakd_imu_link` | OAK-D 相机 IMU 中心 |
+| `oakd_camera_optical_frame` | 相机镜头光学中心（点云参考系） |
+| `gps_link` | GPS 天线位置 |
 
 检查 TF：
 
 ```bash
-./scripts/with_venv.sh ros2 run tf2_tools view_frames
-./scripts/with_venv.sh ros2 run tf2_ros tf2_echo map oakd_imu_link
+ros2 run tf2_tools view_frames
+ros2 run tf2_ros tf2_echo map base_link
 ```
 
-在代码中查询变换（示例）：
-
-```python
-from tf2_ros import Buffer, TransformListener
-import rclpy
-
-node = rclpy.create_node('tf_query')
-tf_buffer = Buffer()
-tf_listener = TransformListener(tf_buffer, node)
-
-try:
-    trans = tf_buffer.lookup_transform('map', 'oakd_imu_link', rclpy.time.Time())
-except Exception as e:
-  node.get_logger().warn(f"TF lookup failed: {e}")
-```
-
-静态安装偏差：使用 `static_transform_publisher` 或在 launch 中设置静态变换进行校正。
+详细说明（帧定义、发布关系、配置方法、调试排查）请见 [**docs/TF_FRAMES.md**](./docs/TF_FRAMES.md)。
 
 ---
 
@@ -490,33 +480,24 @@ except Exception as e:
 
 ```
 uav_vision_ws/
-├── src/oakd_perception/
-│   ├── oakd_perception/
-│   │   ├── oakd_depth_node.py           # 点云发布节点主文件
-│   │   └── oakd_imu_node.py             # IMU 6轴传感器节点
-│   ├── config/                          # 预设配置文件
-│   │   ├── outdoor_low_power.yaml
-│   │   ├── indoor_high_precision.yaml
-│   │   ├── balanced_mode.yaml
-│   │   └── active_stereo_max.yaml
-│   ├── setup.py
-│   └── package.xml
+├── src/oakd_perception/                  # OAK-D 统一节点（IMU + 深度 + 点云）
+├── src/imu_fusion/                       # IMU 互补滤波
+├── src/VINS-Fusion-ros2/                 # 双目视觉惯导里程计（VIO）
+├── src/robot_localization/               # 双级 EKF 状态融合
 ├── src/nav_mapping/                      # 点云到局部占用栅格
 ├── src/nav_planning/                     # 基础局部规划策略
 ├── src/nav_safety/                       # 安全监控与紧急信号
-├── src/px4_comm_bridge/                   # PX4 数据/控制桥接
-├── src/nav_local/                        # 向后兼容层
+├── src/px4_comm_bridge/                  # PX4 数据/控制桥接（IMU + GPS + 控制）
 ├── src/uav_bringup/                      # 导航栈启动编排
-├── scripts/                             # 快速启动脚本与工具
-│   ├── with_venv.sh
-│   ├── run_complete_system.sh
-│   ├── run_imu_fusion_tf.sh
-│   ├── run_oakd_outdoor.sh
-│   ├── run_oakd_indoor.sh
-│   ├── run_oakd_balance.sh
-│   ├── run_oakd_active_max.sh
-│   └── run_oakd_unified.sh
-├── docs/                                # 架构、安装、验证与快速参考
+│   ├── launch/ekf_launch.py             #   双级 EKF + GPS 开关 + 静态外参
+│   ├── launch/nav_stack.launch.py       #   完整导航栈入口
+│   └── config/dual_ekf.yaml             #   EKF + NavSat 配置
+├── src/px4_msgs/                         # PX4 消息定义（可选依赖）
+├── scripts/                              # 快速启动脚本与工具
+├── docs/                                 # 文档
+│   ├── TF_FRAMES.md                     #   TF 坐标变换系统说明
+│   ├── ARCHITECTURE.md                  #   系统架构设计
+│   └── ...
 └── README.md
 ```
 
