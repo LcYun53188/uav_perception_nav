@@ -284,12 +284,12 @@ ros2 topic pub /nav/cmd_vel geometry_msgs/msg/TwistStamped \
 
 | 方向 | ROS 话题 | PX4 话题 | 消息类型 | 备注 |
 |---|---|---|---|---|
-| 订阅 | `/nav/cmd_vel` | — | `geometry_msgs/TwistStamped` | 主控制通道 |
+| 订阅 | `/nav/cmd_vel` | — | `geometry_msgs/TwistStamped` | 主控制通道，`angular.z` 映射为 yaw rate |
 | 订阅 | `/nav/cmd_pose` | — | `geometry_msgs/PoseStamped` | 预留，尚未实现 |
 | 订阅 | `/nav/emergency` | — | `std_msgs/Bool` | `true` 触发应急 |
 | 订阅 | `/nav/safety_status` | — | `std_msgs/Int8` | ≥ 2 触发应急 |
 | 发布 | — | `/fmu/in/offboard_control_mode` | `px4_msgs/OffboardControlMode` | 20 Hz 心跳 |
-| 发布 | — | `/fmu/in/trajectory_setpoint` | `px4_msgs/TrajectorySetpoint` | 速度模式，NED |
+| 发布 | — | `/fmu/in/trajectory_setpoint` | `px4_msgs/TrajectorySetpoint` | 速度 + yawspeed 模式，NED |
 | 发布 | — | `/fmu/in/vehicle_command` | `px4_msgs/VehicleCommand` | ARM/LAND/RTL |
 
 ---

@@ -28,8 +28,8 @@ def generate_test_description():
         ),
         launch_ros.actions.Node(
             package='nav_planning',
-            executable='local_planner',
-            name='local_planner',
+            executable='se2_dwa_local_planner',
+            name='se2_dwa_local_planner',
         ),
         launch_ros.actions.Node(
             package='px4_comm_bridge',
@@ -48,6 +48,20 @@ def generate_test_description():
                 '0',
                 'map',
                 'oakd_camera_optical_frame',
+            ],
+        ),
+        launch_ros.actions.Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            arguments=[
+                '0',
+                '0',
+                '0',
+                '0',
+                '0',
+                '0',
+                'map',
+                'base_link',
             ],
         ),
         launch_testing.actions.ReadyToTest(),

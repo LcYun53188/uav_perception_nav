@@ -6,7 +6,7 @@ from px4_msgs.msg import VehicleStatus
 from .converters import (
     fill_offboard_control_mode,
     fill_trajectory_setpoint,
-    planner_twist_to_ned_velocity,
+    planner_twist_to_ned_velocity_and_yawspeed,
 )
 from .px4_state_machine import PX4StateMachine, PX4State
 
@@ -222,17 +222,17 @@ class Px4ControlBridge:
         self.offboard_mode_pub.publish(msg)
 
     def publish_setpoint(self, cmd_msg: TwistStamped):
-        vx, vy, vz = planner_twist_to_ned_velocity(
+        vx, vy, vz, yawspeed = planner_twist_to_ned_velocity_and_yawspeed(
             cmd_msg,
             str(self.node.get_parameter('input_velocity_frame').value),
         )
         msg = self.trajectory_setpoint_type()
-        fill_trajectory_setpoint(msg, self.now_us(), vx, vy, vz)
+        fill_trajectory_setpoint(msg, self.now_us(), vx, vy, vz, yawspeed)
         self.setpoint_pub.publish(msg)
 
     def publish_halt_setpoint(self):
         msg = self.trajectory_setpoint_type()
-        fill_trajectory_setpoint(msg, self.now_us(), 0.0, 0.0, 0.0)
+        fill_trajectory_setpoint(msg, self.now_us(), 0.0, 0.0, 0.0, 0.0)
         self.setpoint_pub.publish(msg)
 
     def _send_emergency_action(self):

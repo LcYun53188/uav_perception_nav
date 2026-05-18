@@ -135,11 +135,11 @@ def generate_launch_description():
             parameters=[config_file],
         ),
 
-        # ─ 局部规划器 (当前APF) ─
+        # ─ 局部规划器 (SE(2) DWA: vx/vy/yaw_rate) ─
         Node(
             package='nav_planning',
-            executable='local_planner',
-            name='local_planner',
+            executable='se2_dwa_local_planner',
+            name='se2_dwa_local_planner',
             output='screen',
             parameters=[config_file],
         ),

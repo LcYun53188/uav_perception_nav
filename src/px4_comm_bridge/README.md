@@ -49,7 +49,7 @@ PX4 与 ROS 2 之间的统一桥接包，负责 PX4 数据/控制双向桥接。
 - 命令超时保护（`cmd_timeout_sec`）
 - `auto_arm`
 - 应急动作 `land|rtl|disarm`
-- ENU/NED 速度输入转换
+- ENU/NED 速度与 yaw rate 输入转换
 
 ## 3. 关键参数
 
@@ -61,7 +61,7 @@ PX4 与 ROS 2 之间的统一桥接包，负责 PX4 数据/控制双向桥接。
 | `px4_imu_topic` | `/px4/vehicle_imu` | PX4 IMU 输入 |
 | `pub_odometry` | `/px4/odom` | Odometry 输出 |
 | `pub_imu` | `/px4/imu` | Imu 输出 |
-| `planner_cmd_topic` | `/nav/cmd_vel` | 规划速度输入 |
+| `planner_cmd_topic` | `/nav/cmd_vel` | 规划速度输入；`angular.z` 作为 yaw rate |
 | `planner_pose_topic` | `/nav/cmd_pose` | 规划位姿输入（预留） |
 | `planner_emergency_topic` | `/nav/emergency` | 应急输入 |
 | `planner_safety_topic` | `/nav/safety_status` | 安全等级输入 |
@@ -69,7 +69,7 @@ PX4 与 ROS 2 之间的统一桥接包，负责 PX4 数据/控制双向桥接。
 | `fmu_trajectory_topic` | `/fmu/in/trajectory_setpoint` | 轨迹输出 |
 | `fmu_command_topic` | `/fmu/in/vehicle_command` | 命令输出 |
 | `control_rate_hz` | `20.0` | 控制循环频率 |
-| `input_velocity_frame` | `enu` | 输入速度坐标系（`enu`/`ned`） |
+| `input_velocity_frame` | `enu` | 输入速度/yaw rate 坐标系（`enu`/`ned`） |
 | `auto_arm` | `false` | 首次控制是否自动解锁 |
 | `emergency_action` | `land` | 应急动作（`land`/`rtl`/`disarm`） |
 | `cmd_timeout_sec` | `0.5` | 控制命令超时阈值 |

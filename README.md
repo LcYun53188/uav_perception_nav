@@ -9,7 +9,7 @@
 - OAK-D 统一节点、VINS-Fusion 视觉惯导里程计、PX4 姿态/IMU/GPS 桥接、双级 EKF 状态融合、局部建图、安全监控、PX4 控制桥接与启动编排已实现；
 - 导航栈已经形成点云 → 占用栅格 → `/nav/cmd_vel` → 安全监控 → PX4 桥接的完整管道；
 - TF 树采用双级 EKF 架构，支持 GPS / 无 GPS 两种模式切换（`enable_gps` 参数）；
-- `local_planner` 仍是基础前向速度策略，不是障碍物感知的成熟局部规划器；
+- 默认局部规划器已切换为 `se2_dwa_local_planner`，在二维平面采样 `vx/vy/yaw_rate`，并通过 PX4 velocity/yawspeed setpoint 输出；
 - `px4_msgs` 为可选依赖，缺失时桥接层会降级运行；
 - 真机飞行验收、障碍物感知规划与 3D 导航主方案仍在后续迭代中。
 
@@ -58,7 +58,7 @@ source install/setup.bash
 
 仍需补齐：
 
-- 基于障碍物的真正局部规划器，例如 DWA / DWB；
+- 真机环境下 SE(2) DWA 参数整定、速度/偏航速率限幅与飞行验收；
 - 真机飞行前的完整验收；
 - 更进一步的 3D 地图、ESDF 或体素导航。
 
@@ -112,7 +112,7 @@ source install/setup.bash
 | `robot_localization` | 双级 EKF 与 GPS 转换 | `/vio/odometry`，`/px4/attitude`，`/px4/imu`，可选 `/gps/fix` | `/odometry/local`，可选 `/odometry/global`、`/odometry/gps`，`/tf` |
 | `imu_fusion` | OAK-D IMU 预融合/调试链路 | `/oakd/imu/raw` | `/oakd/imu/fused` |
 | `nav_mapping` | 点云投影与局部占用栅格生成 | `/oakd/points_filtered`，`/tf`，`/tf_static` | `/local_map/occupancy` |
-| `nav_planning` | 基础局部规划与速度决策 | `/local_map/occupancy`，`/odometry/local`，目标话题 | `/nav/cmd_vel` |
+| `nav_planning` | SE(2) DWA 二维局部规划与速度/偏航速率决策 | `/local_map/occupancy`，`/tf`，目标话题 | `/nav/cmd_vel` |
 | `nav_safety` | 点云、TF、里程计与 PX4 状态安全监控 | `/oakd/points`，`/tf`，`/odometry/local` | `/nav/emergency`，`/nav/safety_status` |
 | `px4_comm_bridge` | PX4 数据/控制桥接与看门狗 | `/nav/cmd_vel`，`/nav/emergency`，`/nav/safety_status`，PX4 uORB ROS 话题 | `/px4/odom`，`/px4/imu`，`/px4/attitude`，`/gps/fix`，`/fmu/in/*` |
 | `nav_local` | 向后兼容层（转发旧入口到新包） | - | - |
@@ -142,7 +142,7 @@ source install/setup.bash
 VIO 链路：   双目图像 + /oakd/imu/raw → VINS-Fusion → /vio/odometry
 PX4 数据：   PX4 uORB ROS 话题 → px4_comm_bridge → /px4/attitude, /px4/imu, /gps/fix
 定位链路：   /vio/odometry + /px4/attitude + /px4/imu [+ /gps/fix] → 双级 EKF → TF(map→odom→base_link)
-导航链路：   /oakd/points_filtered + 主 TF → /local_map/occupancy → /nav/cmd_vel → px4_comm_bridge → PX4
+导航链路：   /oakd/points_filtered + 主 TF → /local_map/occupancy → SE(2) DWA → /nav/cmd_vel → px4_comm_bridge → PX4 velocity/yawspeed
 ```
 
 TF 树：`map → odom → base_link → oakd_imu_link → oakd_camera_optical_frame`
@@ -334,11 +334,11 @@ ros2 launch uav_bringup nav_stack.launch.py enable_gps:=true
 - `px4_comm_bridge` 发布 `/px4/attitude`、`/px4/imu`、`/gps/fix`，其中姿态与 IMU 在 EKF 中分开融合；
 - GPS 模式下 `ekf_filter_node_map` 额外融合 GPS，发布 `map→odom` TF 和 `/odometry/global`；
 - `local_map_builder` 订阅 `/oakd/points_filtered`，通过 TF 投影生成 `/local_map/occupancy`；
-- `local_planner` 消费局部栅格并发布 `/nav/cmd_vel`；
+- `se2_dwa_local_planner` 消费局部栅格、目标与 TF，发布 `/nav/cmd_vel`，其中 `linear.x/y` 为 ENU 平面速度，`angular.z` 为 ENU yaw rate；
 - `safety_monitor` 订阅 `/oakd/points` 并发布 `/nav/emergency`；
 - `px4_comm_bridge` 桥接到 PX4，不可用时降级运行。
 
-注意：`local_planner` 仍是原型级前向速度策略，后续应替换为成熟的障碍物感知局部规划器。
+注意：旧 `local_planner` 仍保留为兼容/回退入口；统一导航栈默认使用 `se2_dwa_local_planner`。
 
 ### 4.6 一键验证顺序
 
@@ -496,7 +496,7 @@ ros2 run tf2_ros tf2_echo map base_link
 - 常见问题：ModuleNotFoundError: depthai → 确认 `.venv` 中安装 depthai（见第 3 节）。
 - 设备冲突：优先使用统一节点或确保仅有一个进程访问设备。可用 `pkill` 停止冗余进程。
 - RViz 不显示点云：检查话题 `/oakd/points`、Fixed Frame 与 TF 链路。
-- 导航栈只会持续发布前向速度：这是当前 `local_planner` 的设计边界，不是故障。
+- 导航栈持续发布零速度：检查 `/local_map/occupancy` 是否超时、`map→base_link` TF 是否存在，以及 `/nav/emergency` 是否为 true。
 
 常用排查命令见第 7 节。
 

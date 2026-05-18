@@ -28,6 +28,7 @@ setup(
     license='Apache-2.0',
     entry_points={'console_scripts': [
         'local_planner = nav_planning.local_planner:main',
+        'se2_dwa_local_planner = nav_planning.se2_dwa_local_planner:main',
         'dwb_bridge = nav_planning.dwb_bridge:main',
     ]},
 )

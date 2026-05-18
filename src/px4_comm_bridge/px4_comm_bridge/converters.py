@@ -118,25 +118,40 @@ def vehicle_attitude_to_pose(msg) -> PoseWithCovarianceStamped:
 
 
 def planner_twist_to_ned_velocity(cmd_msg, input_frame: str):
+    vx, vy, vz, _yawspeed = planner_twist_to_ned_velocity_and_yawspeed(
+        cmd_msg, input_frame
+    )
+    return vx, vy, vz
+
+
+def planner_twist_to_ned_velocity_and_yawspeed(cmd_msg, input_frame: str):
     vx = float(cmd_msg.twist.linear.x)
     vy = float(cmd_msg.twist.linear.y)
     vz = float(cmd_msg.twist.linear.z)
+    yawspeed = float(cmd_msg.twist.angular.z)
 
     if input_frame.lower() == 'ned':
-        return vx, vy, vz
+        return vx, vy, vz, yawspeed
 
     # ROS ENU -> PX4 NED
-    return vy, vx, -vz
+    return vy, vx, -vz, -yawspeed
 
 
-def fill_trajectory_setpoint(setpoint_msg, timestamp_us: int, vx: float, vy: float, vz: float):
+def fill_trajectory_setpoint(
+    setpoint_msg,
+    timestamp_us: int,
+    vx: float,
+    vy: float,
+    vz: float,
+    yawspeed: float = math.nan,
+):
     setpoint_msg.timestamp = int(timestamp_us)
     setpoint_msg.position = [math.nan, math.nan, math.nan]
     setpoint_msg.velocity = [float(vx), float(vy), float(vz)]
     setpoint_msg.acceleration = [math.nan, math.nan, math.nan]
     setpoint_msg.jerk = [math.nan, math.nan, math.nan]
     setpoint_msg.yaw = math.nan
-    setpoint_msg.yawspeed = math.nan
+    setpoint_msg.yawspeed = float(yawspeed)
 
 
 def fill_offboard_control_mode(offboard_msg, timestamp_us: int):
