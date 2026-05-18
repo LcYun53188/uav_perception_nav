@@ -70,7 +70,10 @@ def _optional_launch(context, enabled, package_arg, launch_arg, label):
             )
         ]
 
-    launch_path = os.path.join(package_share, 'launch', launch_file)
+    if os.path.dirname(launch_file):
+        launch_path = os.path.join(package_share, launch_file)
+    else:
+        launch_path = os.path.join(package_share, 'launch', launch_file)
     if not os.path.exists(launch_path):
         return [
             LogInfo(
@@ -117,15 +120,58 @@ def launch_setup(context, *args, **kwargs):
             'MID360 driver',
         )
     )
-    nodes.extend(
-        _optional_launch(
-            context,
-            enable_lio,
-            'lio_package',
-            'lio_launch',
-            'LIO',
+
+    if enable_mid360 and source in ('mid360', 'both'):
+        nodes.append(
+            Node(
+                package='nav_mapping',
+                executable='livox_custom_to_pointcloud2',
+                name='mid360_custom_to_pointcloud2',
+                output='screen',
+                parameters=[
+                    {
+                        'input_topic': LaunchConfiguration('mid360_custom_topic'),
+                        'output_topic': LaunchConfiguration('mid360_pointcloud_topic'),
+                        'frame_id': LaunchConfiguration('mid360_frame_id'),
+                    }
+                ],
+            )
         )
-    )
+
+    if enable_lio:
+        lio_package = LaunchConfiguration('lio_package').perform(context)
+        try:
+            lio_share = get_package_share_directory(lio_package)
+        except PackageNotFoundError:
+            nodes.append(
+                LogInfo(
+                    msg=(
+                        f'LIO enabled, but package "{lio_package}" was not found; '
+                        'skipping LIO node'
+                    )
+                )
+            )
+        else:
+            nodes.append(
+                Node(
+                    package=lio_package,
+                    executable=LaunchConfiguration('lio_executable'),
+                    name='fast_lio_mapping',
+                    output='screen',
+                    parameters=[
+                        os.path.join(
+                            lio_share,
+                            'config',
+                            LaunchConfiguration('lio_config_file').perform(context),
+                        ),
+                        {'use_sim_time': False},
+                    ],
+                    remappings=[
+                        ('/Odometry', LaunchConfiguration('lio_odom_topic')),
+                        ('/path', LaunchConfiguration('lio_path_topic')),
+                    ],
+                )
+            )
 
     if source == 'both':
         nodes.append(
@@ -343,6 +389,16 @@ def generate_launch_description():
             description='MID360 point cloud topic for obstacle mapping.',
         ),
         DeclareLaunchArgument(
+            'mid360_custom_topic',
+            default_value='/livox/lidar',
+            description='Livox CustomMsg topic from livox_ros_driver2.',
+        ),
+        DeclareLaunchArgument(
+            'mid360_frame_id',
+            default_value='mid360_link',
+            description='Frame assigned to converted MID360 PointCloud2.',
+        ),
+        DeclareLaunchArgument(
             'combined_pointcloud_topic',
             default_value='/perception/obstacle_points',
             description='Output topic used when obstacle_pointcloud_source:=both.',
@@ -369,24 +425,22 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'mid360_driver_launch',
-            default_value='msg_MID360_launch.py',
-            description='Launch file under the MID360 driver package launch directory.',
+            default_value='launch_ROS2/msg_MID360_launch.py',
+            description='Launch file path under the MID360 driver package share directory.',
         ),
         DeclareLaunchArgument(
             'lio_package',
             default_value='fast_lio',
             description='Optional LIO package to include when enable_lio:=true.',
         ),
-        DeclareLaunchArgument(
-            'lio_launch',
-            default_value='mapping_mid360.launch.py',
-            description='Launch file under the LIO package launch directory.',
-        ),
+        DeclareLaunchArgument('lio_executable', default_value='fastlio_mapping'),
+        DeclareLaunchArgument('lio_config_file', default_value='mid360.yaml'),
         DeclareLaunchArgument(
             'lio_odom_topic',
             default_value='/lio/odometry',
             description='LIO odometry topic fused by EKF when enable_lio:=true.',
         ),
+        DeclareLaunchArgument('lio_path_topic', default_value='/lio/path'),
         DeclareLaunchArgument('mid360_x', default_value='0.0'),
         DeclareLaunchArgument('mid360_y', default_value='0.0'),
         DeclareLaunchArgument('mid360_z', default_value='0.0'),

@@ -1,6 +1,7 @@
 .cache/
 .venv/
 .vscode/
+.deps/
 build/
 install/
 log/

@@ -12,6 +12,7 @@
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 系统架构、数据流、节点设计 | 架构师、集成者 | 20 min |
 | [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md) | PX4 导航与避障路线，对比 nav 与 3D 方案 | 导航集成者、算法开发者 | 15 min |
 | [OAKD_PRO_W_VINS_CALIBRATION.md](./OAKD_PRO_W_VINS_CALIBRATION.md) | OAK-D Pro W 与 VINS-Fusion 标定、静止漂移排查 | VIO 集成者、调试人员 | 15 min |
+| [SUBMODULE_PATCH_REPRODUCTION.md](./SUBMODULE_PATCH_REPRODUCTION.md) | 第三方 submodule + patch 复刻与维护流程 | 开发者、集成者 | 10 min |
 | [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) | 常用命令、参数、问题排查 | 所有用户 | 10 min |
 | [../README.md](../README.md) | 项目主文档、快速开始 | 所有用户 | 10 min |
 
@@ -32,6 +33,7 @@
 - 需要规划 PX4 导航路线？ → [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md)
 - 想调整参数与配置？ → [../README.md](../README.md#5-配置与参数) 或 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常用启动参数)
 - OAK-D Pro W 接入 VINS 静止漂移？ → [OAKD_PRO_W_VINS_CALIBRATION.md](./OAKD_PRO_W_VINS_CALIBRATION.md)
+- 需要复刻 MID360/FAST-LIO2 第三方源码？ → [SUBMODULE_PATCH_REPRODUCTION.md](./SUBMODULE_PATCH_REPRODUCTION.md)
 - 想确认启动入口？ → [../README.md](../README.md#4-运行与启动) 或 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#启动命令)
 - 遇到问题？ → [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常见问题与解决) 或 [../README.md](../README.md#10-故障排查)
 
@@ -51,6 +53,7 @@ docs/
 ├── INSTALLATION.md               # 环境安装指南
 ├── ARCHITECTURE.md               # 系统架构设计
 ├── PX4_NAVIGATION_STRATEGY.md    # PX4 导航与避障路线对比
+├── SUBMODULE_PATCH_REPRODUCTION.md # 第三方源码复刻与 patch 流程
 ├── QUICK_REFERENCE.md            # 快速命令参考
 └── archive/                      # 历史文档
     ├── README.md                 # 归档说明
@@ -103,6 +106,16 @@ docs/
 - 系统架构简图
 - 性能指标
 
+### SUBMODULE_PATCH_REPRODUCTION.md
+
+**用途**：复刻当前项目的第三方源码依赖，并维护本项目对 submodule 的 patch。
+
+**内容**：
+- 新环境拉取 submodule 和应用 patch
+- 新增、更新第三方 submodule 的流程
+- 检查第三方源码没有误提交到父仓库
+- patch 冲突与恢复方法
+
 ### 标准启动脚本
 
 - [scripts/run_complete_system.sh](../scripts/run_complete_system.sh) — 完整系统一键编排
@@ -140,4 +153,4 @@ docs/
 
 ---
 
-最后更新：2026-05-14
+最后更新：2026-05-18

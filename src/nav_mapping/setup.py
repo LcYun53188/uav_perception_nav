@@ -18,6 +18,7 @@ setup(
     license='Apache-2.0',
     entry_points={'console_scripts': [
         'local_map_builder = nav_mapping.local_map_builder:main',
+        'livox_custom_to_pointcloud2 = nav_mapping.livox_custom_to_pointcloud2:main',
         'pointcloud_combiner = nav_mapping.pointcloud_combiner:main',
     ]},
 )

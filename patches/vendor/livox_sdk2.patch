@@ -1,0 +1,34 @@
+diff --git a/sdk_core/comm/define.h b/sdk_core/comm/define.h
+index 0872328..f757893 100644
+--- a/sdk_core/comm/define.h
++++ b/sdk_core/comm/define.h
+@@ -31,6 +31,7 @@
+ #include <functional>
+ #include <vector>
+ #include <atomic>
++#include <cstdint>
+ 
+ #include "livox_lidar_def.h"
+ 
+@@ -354,7 +355,8 @@ typedef struct {
+ typedef struct {
+   enum class SyncTimeType : std::uint8_t {
+     kRmcSyncTime = 2,
+-  } type;
++  };
++  SyncTimeType type;
+   uint64_t ns;
+ } LivoxLidarRmcSyncTimeRequest;
+ 
+diff --git a/sdk_core/logger_handler/file_manager.h b/sdk_core/logger_handler/file_manager.h
+index 242a431..14cd76a 100644
+--- a/sdk_core/logger_handler/file_manager.h
++++ b/sdk_core/logger_handler/file_manager.h
+@@ -28,6 +28,7 @@
+ #include <string>
+ #include <vector>
+ #include <map>
++#include <cstdint>
+ 
+ namespace livox {
+ namespace lidar {
