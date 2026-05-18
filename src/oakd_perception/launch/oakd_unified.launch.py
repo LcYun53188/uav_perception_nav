@@ -27,6 +27,12 @@ def launch_setup(context, *args, **kwargs):
         "sampling_step": int(LaunchConfiguration("sampling_step").perform(context)),
         "min_depth": int(LaunchConfiguration("min_depth").perform(context)),
         "max_depth": int(LaunchConfiguration("max_depth").perform(context)),
+        "depth_border_crop_px": int(
+            LaunchConfiguration("depth_border_crop_px").perform(context)
+        ),
+        "max_depth_jump_mm": int(
+            LaunchConfiguration("max_depth_jump_mm").perform(context)
+        ),
         "enable_fov_boundary_filter": LaunchConfiguration(
             "enable_fov_boundary_filter"
         ).perform(context)
@@ -103,6 +109,8 @@ def generate_launch_description():
             DeclareLaunchArgument("sampling_step", default_value="2"),
             DeclareLaunchArgument("min_depth", default_value="200"),
             DeclareLaunchArgument("max_depth", default_value="5000"),
+            DeclareLaunchArgument("depth_border_crop_px", default_value="8"),
+            DeclareLaunchArgument("max_depth_jump_mm", default_value="350"),
             DeclareLaunchArgument(
                 "enable_fov_boundary_filter", default_value="true"
             ),

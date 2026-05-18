@@ -176,12 +176,80 @@ def create_fov_filter() -> FOVBoundaryFilter:
 
 
 def estimate_fov_from_intrinsics(
-    fx: float, fy: float, width: int, height: int
+    fx: float,
+    fy: float,
+    width: int,
+    height: int,
+    cx: float | None = None,
+    cy: float | None = None,
 ) -> Tuple[float, float]:
     """Estimate horizontal and vertical FOV from camera intrinsics."""
-    fov_h = 2 * np.degrees(np.arctan(width / (2 * fx)))
-    fov_v = 2 * np.degrees(np.arctan(height / (2 * fy)))
+    if cx is None:
+        cx = width / 2.0
+    if cy is None:
+        cy = height / 2.0
+
+    fov_h = np.degrees(np.arctan(cx / fx) + np.arctan((width - cx) / fx))
+    fov_v = np.degrees(np.arctan(cy / fy) + np.arctan((height - cy) / fy))
     return fov_h, fov_v
+
+
+def build_depth_filter_mask(
+    depth_frame: np.ndarray,
+    min_depth_mm: float,
+    max_depth_mm: float,
+    border_px: int = 0,
+    max_depth_jump_mm: float = 0.0,
+) -> np.ndarray:
+    """Build a validity mask for depth images before point projection."""
+    depth = np.asarray(depth_frame)
+    mask = (depth > min_depth_mm) & (depth < max_depth_mm) & np.isfinite(depth)
+
+    # Border pixels and abrupt depth discontinuities are common stereo outliers.
+    # Set either threshold to 0 to disable that stage.
+    border = max(int(border_px), 0)
+    if border > 0 and mask.size > 0:
+        height, width = mask.shape
+        if border * 2 >= height or border * 2 >= width:
+            return np.zeros_like(mask, dtype=bool)
+        mask[:border, :] = False
+        mask[-border:, :] = False
+        mask[:, :border] = False
+        mask[:, -border:] = False
+
+    jump_limit = float(max_depth_jump_mm)
+    if jump_limit > 0.0 and mask.size > 0:
+        depth_f = depth.astype(np.float32, copy=False)
+        stable = np.ones_like(mask, dtype=bool)
+
+        neighbor_checks = (
+            (
+                depth_f[1:, :],
+                depth_f[:-1, :],
+                mask[1:, :],
+                mask[:-1, :],
+                stable[1:, :],
+                stable[:-1, :],
+            ),
+            (
+                depth_f[:, 1:],
+                depth_f[:, :-1],
+                mask[:, 1:],
+                mask[:, :-1],
+                stable[:, 1:],
+                stable[:, :-1],
+            ),
+        )
+        for depth_a, depth_b, mask_a, mask_b, stable_a, stable_b in neighbor_checks:
+            jump = np.abs(depth_a - depth_b) > jump_limit
+            valid_pair = mask_a & mask_b
+            unstable = jump & valid_pair
+            stable_a[unstable] = False
+            stable_b[unstable] = False
+
+        mask &= stable
+
+    return mask
 
 
 def estimate_fov_from_points(

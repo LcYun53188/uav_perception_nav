@@ -10,6 +10,8 @@ oakd_unified:
     sampling_step: 2              # 采样间隔2（2x2下采样）
     min_depth: 200                # 最小深度200mm
     max_depth: 5000               # 最大深度5000mm
+    depth_border_crop_px: 8       # 平衡边缘裁剪
+    max_depth_jump_mm: 350        # 平衡深度突变过滤
 
     # IMU参数
     imu_frequency: 400

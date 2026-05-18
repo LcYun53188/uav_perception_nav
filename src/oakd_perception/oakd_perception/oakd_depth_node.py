@@ -37,6 +37,7 @@ from std_msgs.msg import Header
 
 from oakd_perception.fov_boundary_filter import (
     FOVBoundaryFilter,
+    build_depth_filter_mask,
     estimate_fov_from_intrinsics,
 )
 
@@ -54,6 +55,8 @@ class OakDPointCloudNode(Node):
         self.declare_parameter("sampling_step", 2)  # 采样间隔
         self.declare_parameter("min_depth", 200)  # 最小深度(mm)
         self.declare_parameter("max_depth", 5000)  # 最大深度(mm)
+        self.declare_parameter("depth_border_crop_px", 8)
+        self.declare_parameter("max_depth_jump_mm", 350)
         self.declare_parameter("filtered_pointcloud_topic", "/oakd/points_filtered")
         self.declare_parameter("enable_fov_boundary_filter", True)
         self.declare_parameter("auto_estimate_fov", True)
@@ -67,6 +70,8 @@ class OakDPointCloudNode(Node):
         self.sampling_step = self.get_parameter("sampling_step").value
         self.min_depth = self.get_parameter("min_depth").value
         self.max_depth = self.get_parameter("max_depth").value
+        self.depth_border_crop_px = self.get_parameter("depth_border_crop_px").value
+        self.max_depth_jump_mm = self.get_parameter("max_depth_jump_mm").value
         self.filtered_pointcloud_topic = self.get_parameter(
             "filtered_pointcloud_topic"
         ).value
@@ -139,7 +144,7 @@ class OakDPointCloudNode(Node):
         """Configure the frustum boundary filter for point cloud publishing."""
         if self.auto_estimate_fov:
             self.fov_h_deg, self.fov_v_deg = estimate_fov_from_intrinsics(
-                self.fx, self.fy, 640, 400
+                self.fx, self.fy, 640, 400, self.cx, self.cy
             )
 
         self.fov_filter = FOVBoundaryFilter(
@@ -236,7 +241,7 @@ class OakDPointCloudNode(Node):
 
         depth_frame = inDepth.getFrame()
 
-        step = self.sampling_step
+        step = max(int(self.sampling_step), 1)
         depth_down = depth_frame[::step, ::step]
 
         height, width = depth_down.shape
@@ -244,7 +249,14 @@ class OakDPointCloudNode(Node):
         v = np.arange(0, height * step, step)
         uu, vv = np.meshgrid(u, v)
 
-        valid_mask = (depth_down > self.min_depth) & (depth_down < self.max_depth)
+        border_px = int(np.ceil(max(self.depth_border_crop_px, 0) / step))
+        valid_mask = build_depth_filter_mask(
+            depth_down,
+            self.min_depth,
+            self.max_depth,
+            border_px=border_px,
+            max_depth_jump_mm=self.max_depth_jump_mm,
+        )
         z = depth_down[valid_mask] / 1000.0
         x = (uu[valid_mask] - self.cx) * z / self.fx
         y = (vv[valid_mask] - self.cy) * z / self.fy

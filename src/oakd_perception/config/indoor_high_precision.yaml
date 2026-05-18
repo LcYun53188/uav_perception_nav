@@ -9,6 +9,8 @@ oakd_unified:
     sampling_step: 1              # 采样间隔1（无下采样，最密集）
     min_depth: 100                # 最小深度100mm（支持更近距离）
     max_depth: 5000               # 最大深度5000mm
+    depth_border_crop_px: 6       # 室内保留更多视野，只裁剪最外圈
+    max_depth_jump_mm: 450        # 近距离物体较多，放宽突变阈值
 
     # IMU参数
     imu_frequency: 400
