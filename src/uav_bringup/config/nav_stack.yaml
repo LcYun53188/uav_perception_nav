@@ -95,6 +95,10 @@ ekf_filter_node:
 local_map_builder:
   ros__parameters:
     frame_id: map
+    # nav_stack.launch.py can override this via obstacle_pointcloud_source:
+    #   oakd   -> /oakd/points_filtered
+    #   mid360 -> /mid360/points
+    #   both   -> /perception/obstacle_points
     pointcloud_topic: /oakd/points_filtered
     resolution: 0.5
     width: 40
@@ -151,6 +155,8 @@ se2_dwa_local_planner:
 
 safety_monitor:
   ros__parameters:
+    # Overridden by nav_stack.launch.py to match local_map_builder's obstacle cloud.
+    pointcloud_topic: /oakd/points_filtered
     min_points_threshold: 10
 
 px4_comm_bridge:
