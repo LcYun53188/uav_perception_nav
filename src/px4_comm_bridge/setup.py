@@ -1,3 +1,5 @@
+import os
+
 from setuptools import setup
 
 package_name = 'px4_comm_bridge'
@@ -22,6 +24,15 @@ setup(
             'px4_bridge_node = px4_comm_bridge.px4_bridge_node:main',
             'px4_mock_node = px4_comm_bridge.px4_mock_node:main',
             'fake_px4_sensors = px4_comm_bridge.fake_px4_sensors:main',
+            'fake_vio_odometry = px4_comm_bridge.fake_vio_odometry:main',
         ],
+    },
+    options={
+        'develop': {
+            'script_dir': os.path.join('$base', 'lib', package_name),
+        },
+        'install': {
+            'install_scripts': os.path.join('$base', 'lib', package_name),
+        },
     },
 )

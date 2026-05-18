@@ -18,6 +18,7 @@ class FakePx4Sensors(Node):
         self.declare_parameter('rate_hz', 50.0)
         self.declare_parameter('publish_gps', True)
         self.declare_parameter('publish_px4_odom', True)
+        self.declare_parameter('include_gravity_in_accel', False)
         self.declare_parameter('latitude', 31.2304)
         self.declare_parameter('longitude', 121.4737)
         self.declare_parameter('altitude', 10.0)
@@ -72,7 +73,9 @@ class FakePx4Sensors(Node):
         imu.angular_velocity.z = 0.0
         imu.linear_acceleration.x = 0.0
         imu.linear_acceleration.y = 0.0
-        imu.linear_acceleration.z = 9.80665
+        imu.linear_acceleration.z = (
+            9.80665 if bool(self.get_parameter('include_gravity_in_accel').value) else 0.0
+        )
         imu.angular_velocity_covariance[0] = 0.01
         imu.angular_velocity_covariance[4] = 0.01
         imu.angular_velocity_covariance[8] = 0.01
@@ -117,4 +120,3 @@ def main(args=None):
     node.destroy_node()
     if rclpy.ok():
         rclpy.shutdown()
-
