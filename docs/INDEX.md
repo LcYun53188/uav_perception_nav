@@ -12,6 +12,7 @@
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 系统架构、数据流、节点设计 | 架构师、集成者 | 20 min |
 | [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md) | PX4 导航与避障路线，对比 nav 与 3D 方案 | 导航集成者、算法开发者 | 15 min |
 | [OAKD_PRO_W_VINS_CALIBRATION.md](./OAKD_PRO_W_VINS_CALIBRATION.md) | OAK-D Pro W 与 VINS-Fusion 标定、静止漂移排查 | VIO 集成者、调试人员 | 15 min |
+| [DEBUG_VALIDATION_FLOW.md](./DEBUG_VALIDATION_FLOW.md) | 从环境、传感器、里程计、EKF、地图到 PX4 的逐层验证流程 | 调试人员、集成者 | 15 min |
 | [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md) | OAK-D / MID360 单设备启动、话题检查、RViz 与 bag 调试 | 调试人员、集成者 | 10 min |
 | [SUBMODULE_PATCH_REPRODUCTION.md](./SUBMODULE_PATCH_REPRODUCTION.md) | 第三方 submodule + patch 复刻与维护流程 | 开发者、集成者 | 10 min |
 | [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) | 常用命令、参数、问题排查 | 所有用户 | 10 min |
@@ -33,6 +34,7 @@
 - 需要了解架构设计？ → [ARCHITECTURE.md](./ARCHITECTURE.md)
 - 需要规划 PX4 导航路线？ → [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md)
 - 想调整参数与配置？ → [../README.md](../README.md#5-配置与参数) 或 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常用启动参数)
+- 想逐层验证调试链路？ → [DEBUG_VALIDATION_FLOW.md](./DEBUG_VALIDATION_FLOW.md)
 - OAK-D Pro W 接入 VINS 静止漂移？ → [OAKD_PRO_W_VINS_CALIBRATION.md](./OAKD_PRO_W_VINS_CALIBRATION.md)
 - 只调试 OAK-D 或 MID360？ → [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md)
 - 需要复刻 MID360/FAST-LIO2 第三方源码？ → [SUBMODULE_PATCH_REPRODUCTION.md](./SUBMODULE_PATCH_REPRODUCTION.md)
@@ -55,6 +57,7 @@ docs/
 ├── INSTALLATION.md               # 环境安装指南
 ├── ARCHITECTURE.md               # 系统架构设计
 ├── PX4_NAVIGATION_STRATEGY.md    # PX4 导航与避障路线对比
+├── DEBUG_VALIDATION_FLOW.md      # 调试链路与逐层验证流程
 ├── SENSOR_DEBUG_GUIDE.md         # OAK-D / MID360 独立调试
 ├── SUBMODULE_PATCH_REPRODUCTION.md # 第三方源码复刻与 patch 流程
 ├── QUICK_REFERENCE.md            # 快速命令参考
@@ -109,6 +112,17 @@ docs/
 - 系统架构简图
 - 性能指标
 
+### DEBUG_VALIDATION_FLOW.md
+
+**用途**：按依赖关系逐层验证项目链路，定位问题属于硬件、里程计、TF、局部地图、规划、安全还是 PX4 桥接。
+
+**内容**：
+- L0 环境与构建检查
+- L1 OAK-D / MID360 单传感器检查
+- L2 VINS-Fusion / FAST-LIO2 单里程计检查
+- L3-L7 EKF、TF、局部地图、规划、安全和 PX4 桥接检查
+- L8 bag 录制与回放复现
+
 ### SUBMODULE_PATCH_REPRODUCTION.md
 
 **用途**：复刻当前项目的第三方源码依赖，并维护本项目对 submodule 的 patch。
@@ -151,6 +165,7 @@ docs/
 ## 🔗 相关链接
 
 - [主 README](../README.md) — 项目概览与快速开始
+- [调试链路与逐层验证流程](./DEBUG_VALIDATION_FLOW.md)
 - [OAK-D / MID360 独立调试指南](./SENSOR_DEBUG_GUIDE.md)
 - [DepthAI 官方文档](https://docs.luxonis.com/)
 - [ROS 2 官方文档](https://docs.ros.org/en/humble/)

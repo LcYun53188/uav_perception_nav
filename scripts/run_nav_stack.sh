@@ -15,7 +15,7 @@ Modes:
   gps           OAK-D + VINS + GPS fusion
   mid360        MID360 replaces OAK-D point cloud for obstacle mapping
   both          OAK-D and MID360 point clouds are combined
-  mid360_lio    OAK-D + MID360 + FAST-LIO2 redundant odometry
+  mid360_lio    OAK-D VIO + MID360 FAST-LIO2 as peer odometry sources
   mid360_only   Disable OAK-D perception/IMU fusion/VINS, use MID360 + FAST-LIO2
 
 Examples:

@@ -91,7 +91,7 @@ env ROS_LOG_DIR=/tmp/ros_log ./scripts/with_venv.sh colcon build \
 
 - 启动默认导航栈：`./scripts/run_nav_stack.sh oakd`
 - 启动 MID360 替代 OAK-D 点云避障：`./scripts/run_nav_stack.sh mid360`
-- 启动 MID360 + FAST-LIO2 冗余里程计：`./scripts/run_nav_stack.sh mid360_lio`
+- 启动 VIO + MID360 FAST-LIO2 并列里程计：`./scripts/run_nav_stack.sh mid360_lio`
 - 启动纯 MID360/LIO 模式：`./scripts/run_nav_stack.sh mid360_only`
 
 6. 打开 RViz：完整导航链路将 `Fixed Frame` 设为 `map`，再添加 `/local_map/occupancy`、`/perception/obstacle_points` 或当前点云源。
@@ -148,7 +148,7 @@ MID360 + FAST-LIO2 接入见 [docs/MID360_FAST_LIO2_INTEGRATION.md](./docs/MID36
 
 - `oakd_perception`：负责 OAK‑D 设备的深度点云与原始 IMU 采集（包含可配置的立体深度参数）；
 - `VINS-Fusion-ros2`：接收 OAK-D 双目图像与 OAK-D IMU，输出 VIO 里程计；
-- `robot_localization`：接收 VIO、PX4 姿态、PX4 IMU 与可选 GPS，输出主定位 TF 与里程计；
+- `robot_localization`：接收 VIO、可选 LIO、PX4 姿态、PX4 IMU 与可选 GPS，输出 EKF 融合定位 TF 与里程计；
 - `imu_fusion`：接收 OAK-D 原始 IMU，输出 `/oakd/imu/fused`，当前作为调试/备用链路，不发布主 TF；
 - `livox_ros_driver2`：接入 Livox MID360，发布 Livox CustomMsg 点云和 Livox IMU；
 - `fast_lio`：可选激光惯性里程计，输出 `/lio/odometry` 供 EKF 融合；
@@ -311,7 +311,7 @@ source install/setup.bash
 4. `uav_bringup/ekf_launch.py`：启动 `robot_localization`，融合 VIO、PX4 姿态、PX4 IMU 和可选 GPS；
 5. `nav_mapping` / `nav_planning` / `nav_safety`：使用主 TF、点云和定位输出完成建图、规划和安全监控；
 6. `px4_comm_bridge`：接收 `/nav/cmd_vel` 与安全状态，输出 PX4 offboard 控制，同时发布 PX4 数据源。
-7. 可选 `livox_ros_driver2` / `fast_lio`：启用 MID360 点云和 LIO 冗余里程计。
+7. 可选 `livox_ros_driver2` / `fast_lio`：启用 MID360 点云和与 VIO 并列的 LIO 里程计。
 
 如果只调试 OAK-D 或 MID360 传感器，不需要启动完整导航栈，请看 [docs/SENSOR_DEBUG_GUIDE.md](./docs/SENSOR_DEBUG_GUIDE.md)。
 
@@ -353,7 +353,7 @@ ros2 launch uav_bringup nav_stack.launch.py \
   enable_mid360:=true \
   obstacle_pointcloud_source:=both
 
-# MID360 + FAST-LIO2 冗余里程计
+# VIO + MID360 FAST-LIO2 并列里程计
 ros2 launch uav_bringup nav_stack.launch.py \
   enable_mid360:=true \
   enable_lio:=true \
@@ -371,12 +371,12 @@ ros2 launch uav_bringup nav_stack.launch.py \
 
 启动后的预期行为：
 
-- `ekf_filter_node_odom` 融合 VIO + PX4 姿态 + PX4 IMU，发布 `odom→base_link` TF 和 `/odometry/local`；
+- `ekf_filter_node_odom` 融合 VIO、可选 LIO、PX4 姿态和 PX4 IMU，发布 `odom→base_link` TF 和 `/odometry/local`；
 - `px4_comm_bridge` 发布 `/px4/attitude`、`/px4/imu`、`/gps/fix`，其中姿态与 IMU 在 EKF 中分开融合；
 - GPS 模式下 `ekf_filter_node_map` 额外融合 GPS，发布 `map→odom` TF 和 `/odometry/global`；
 - `local_map_builder` 订阅 `/oakd/points_filtered`，通过 TF 投影生成 `/local_map/occupancy`；
 - 启用 MID360 时，`local_map_builder` 和 `safety_monitor` 可改用 `/mid360/points` 或 `/perception/obstacle_points`；
-- 启用 FAST-LIO2 时，FAST-LIO2 消费 `/livox/lidar` 和 `/livox/imu`，输出 `/lio/odometry`，EKF 第一版只融合 LIO 位置和速度；
+- 启用 FAST-LIO2 时，FAST-LIO2 消费 `/livox/lidar` 和 `/livox/imu`，输出 `/lio/odometry`；VIO 与 LIO 是并列里程计输入，当前 EKF 配置对 LIO 融合位置和速度；
 - 关闭 OAK-D 时，应同时设置 `enable_oakd_perception:=false enable_imu_fusion:=false enable_vins:=false`，并把 `obstacle_pointcloud_source` 改为 `mid360`；
 - `se2_dwa_local_planner` 消费局部栅格、目标与 TF，发布 `/nav/cmd_vel`，其中 `linear.x/y` 为 ENU 平面速度，`angular.z` 为 ENU yaw rate；
 - `safety_monitor` 订阅 `/oakd/points` 并发布 `/nav/emergency`；
@@ -480,7 +480,30 @@ src/livox_ros_driver2/config/MID360_config.json
 
 ## 7. 测试与验证
 
-### 7.1 在线系统检查
+完整逐层调试顺序见 [docs/DEBUG_VALIDATION_FLOW.md](./docs/DEBUG_VALIDATION_FLOW.md)。建议按依赖关系验证，不要一开始就同时启用所有硬件和全部导航链路。
+
+### 7.1 分层验证顺序
+
+| 层级 | 验证目标 | 关键输出 |
+|------|----------|----------|
+| L0 | 环境、submodule、构建、launch 参数 | `colcon build`、`nav_stack.launch.py --show-args` |
+| L1 | OAK-D / MID360 单传感器数据 | `/oakd/*`、`/livox/lidar`、`/mid360/points` |
+| L2 | VINS-Fusion / FAST-LIO2 单里程计 | `/vio/odometry`、`/lio/odometry` |
+| L3 | EKF 融合定位与 TF | `/odometry/local`、`map -> odom -> base_link` |
+| L4 | 避障点云进入局部地图 | `/local_map/occupancy` |
+| L5 | 局部规划输出 | `/nav/cmd_vel` |
+| L6 | 安全监控 | `/nav/emergency`、`/nav/safety_status` |
+| L7 | PX4 桥接 | `/px4/attitude`、`/px4/imu`、`/fmu/in/*` |
+| L8 | bag 录制与回放复现 | `/tf`、定位、地图、规划、安全话题 |
+
+推荐路线：
+
+- OAK-D VIO 链路：`L0 -> L1 OAK-D -> L2 VINS -> L3 EKF/TF -> L4 oakd map -> L5 planner -> L6 safety -> L7 PX4`
+- MID360 替代点云：`L0 -> L1 MID360 -> L4 mid360 map -> L6 safety -> L5 planner`
+- MID360 + FAST-LIO2 LIO 链路：`L0 -> L1 MID360 -> L2 FAST-LIO2 -> L3 EKF/TF -> L4 map -> L5 planner -> L6 safety`
+- 双点云融合：`L0 -> L1 OAK-D + L1 MID360 -> L4 both map -> L5 planner -> L6 safety`
+
+### 7.2 在线系统检查
 
 ```bash
 source install/setup.bash
@@ -493,16 +516,16 @@ source install/setup.bash
 ./scripts/with_venv.sh ros2 topic hz /nav/emergency
 ```
 
-### 7.2 录制与离线回放（ros2 bag）
+### 7.3 录制与离线回放（ros2 bag）
 
 ```bash
 ./scripts/with_venv.sh ros2 bag record -o nav_test /vio/odometry /odometry/local /local_map/occupancy /nav/cmd_vel /nav/emergency /tf /tf_static
 ./scripts/with_venv.sh ros2 bag play nav_test
 ```
 
-OAK-D / MID360 专项 bag 录制列表见 [docs/SENSOR_DEBUG_GUIDE.md](./docs/SENSOR_DEBUG_GUIDE.md)。
+OAK-D / MID360 专项 bag 录制列表见 [docs/SENSOR_DEBUG_GUIDE.md](./docs/SENSOR_DEBUG_GUIDE.md)，系统级复现建议见 [docs/DEBUG_VALIDATION_FLOW.md](./docs/DEBUG_VALIDATION_FLOW.md)。
 
-### 7.3 常用调试命令
+### 7.4 常用调试命令
 
 ```bash
 # 导出 TF 拓扑
