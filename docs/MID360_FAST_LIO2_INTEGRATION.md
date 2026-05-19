@@ -145,6 +145,14 @@ ping 192.168.1.12
 
 ### 2. MID360 替代 OAK-D 点云做避障
 
+推荐使用脚本：
+
+```bash
+./scripts/run_nav_stack.sh mid360
+```
+
+等价的底层 launch：
+
 ```bash
 ./scripts/with_venv.sh ros2 launch uav_bringup nav_stack.launch.py \
   enable_mid360:=true \
@@ -160,6 +168,14 @@ ping 192.168.1.12
 VINS 定位仍使用 OAK-D。
 
 ### 3. MID360 补充 OAK-D 点云
+
+推荐使用脚本：
+
+```bash
+./scripts/run_nav_stack.sh both
+```
+
+等价的底层 launch：
 
 ```bash
 ./scripts/with_venv.sh ros2 launch uav_bringup nav_stack.launch.py \
@@ -180,6 +196,14 @@ VINS 定位仍使用 OAK-D。
 ```
 
 ### 4. MID360 + FAST-LIO2 冗余里程计
+
+推荐使用脚本：
+
+```bash
+./scripts/run_nav_stack.sh mid360_lio
+```
+
+等价的底层 launch：
 
 ```bash
 ./scripts/with_venv.sh ros2 launch uav_bringup nav_stack.launch.py \
@@ -205,9 +229,43 @@ EKF 会融合：
 
 第一版 EKF 对 LIO 只融合位置和速度，不融合 yaw，以降低 VIO/LIO 航向冲突风险。
 
+### 5. 纯 MID360/LIO 模式：关闭 OAK-D 和 VINS
+
+如果当前任务不需要 OAK-D 图像、OAK-D 深度点云和 VINS，可显式关闭 OAK-D 相关节点：
+
+推荐使用脚本：
+
+```bash
+./scripts/run_nav_stack.sh mid360_only
+```
+
+等价的底层 launch：
+
+```bash
+./scripts/with_venv.sh ros2 launch uav_bringup nav_stack.launch.py \
+  enable_oakd_perception:=false \
+  enable_imu_fusion:=false \
+  enable_vins:=false \
+  enable_mid360:=true \
+  enable_lio:=true \
+  obstacle_pointcloud_source:=mid360
+```
+
+此模式下：
+
+```text
+MID360 -> /livox/lidar -> /mid360/points -> local_map_builder / safety_monitor
+MID360 -> /livox/lidar + /livox/imu -> FAST-LIO2 -> /lio/odometry -> EKF
+```
+
+注意：关闭 VINS 后，主定位不再有 `/vio/odometry` 输入，EKF 需要依赖 `/lio/odometry` 以及可用的 PX4 姿态/IMU/GPS 输入。第一阶段建议先确认 `/lio/odometry` 稳定后再用于飞行。
+
 ## 关键 Launch 参数
 
 ```text
+enable_oakd_perception:=false|true
+enable_imu_fusion:=false|true
+enable_vins:=false|true
 enable_mid360:=false|true
 enable_lio:=false|true
 obstacle_pointcloud_source:=oakd|mid360|both

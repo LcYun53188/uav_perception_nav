@@ -12,6 +12,7 @@ Unified navigation stack launch file (W1-D1-D3: 自包含化)
   ros2 launch uav_bringup nav_stack.launch.py enable_gps:=false
   ros2 launch uav_bringup nav_stack.launch.py enable_mid360:=true obstacle_pointcloud_source:=mid360
   ros2 launch uav_bringup nav_stack.launch.py enable_mid360:=true obstacle_pointcloud_source:=both enable_lio:=true
+  ros2 launch uav_bringup nav_stack.launch.py enable_oakd_perception:=false enable_imu_fusion:=false enable_vins:=false enable_mid360:=true enable_lio:=true obstacle_pointcloud_source:=mid360
 """
 
 import os
@@ -28,6 +29,56 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+
+
+LAUNCH_DEFAULTS = {
+    # Core stack switches
+    'enable_gps': 'false',
+    'launch_dwb': 'false',
+    'enable_oakd_perception': 'true',
+    'enable_imu_fusion': 'true',
+    'enable_vins': 'true',
+
+    # Optional MID360 / LIO switches
+    'enable_mid360': 'false',
+    'enable_lio': 'false',
+    'obstacle_pointcloud_source': 'oakd',
+
+    # Point cloud topics
+    'oakd_pointcloud_topic': '/oakd/points_filtered',
+    'mid360_pointcloud_topic': '/mid360/points',
+    'mid360_custom_topic': '/livox/lidar',
+    'mid360_frame_id': 'mid360_link',
+    'combined_pointcloud_topic': '/perception/obstacle_points',
+    'combined_pointcloud_frame': 'base_link',
+    'combined_pointcloud_publish_rate': '10.0',
+    'combined_pointcloud_max_age_sec': '0.5',
+
+    # Optional driver package/launch names
+    'mid360_driver_package': 'livox_ros_driver2',
+    'mid360_driver_launch': 'launch_ROS2/msg_MID360_launch.py',
+    'lio_package': 'fast_lio',
+    'lio_executable': 'fastlio_mapping',
+    'lio_config_file': 'mid360.yaml',
+    'lio_odom_topic': '/lio/odometry',
+    'lio_path_topic': '/lio/path',
+
+    # Sensor extrinsics: base_link -> mid360_link, order x y z yaw pitch roll
+    'mid360_x': '0.0',
+    'mid360_y': '0.0',
+    'mid360_z': '0.0',
+    'mid360_yaw': '0.0',
+    'mid360_pitch': '0.0',
+    'mid360_roll': '0.0',
+}
+
+
+def _launch_arg(name, description=''):
+    return DeclareLaunchArgument(
+        name,
+        default_value=LAUNCH_DEFAULTS[name],
+        description=description,
+    )
 
 
 def _as_bool(value):
@@ -267,6 +318,9 @@ def launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     enable_gps = LaunchConfiguration('enable_gps')
+    enable_oakd_perception = LaunchConfiguration('enable_oakd_perception')
+    enable_imu_fusion = LaunchConfiguration('enable_imu_fusion')
+    enable_vins = LaunchConfiguration('enable_vins')
     enable_mid360 = LaunchConfiguration('enable_mid360')
     enable_lio = LaunchConfiguration('enable_lio')
 
@@ -286,6 +340,7 @@ def generate_launch_description():
             'pointcloud_frequency': '20',
             'enable_passive_stereo': 'true',
         }.items(),
+        condition=IfCondition(enable_oakd_perception),
     )
 
     # ─────────────────────────────────────────────────────
@@ -305,6 +360,7 @@ def generate_launch_description():
             'frame_id': 'oakd_imu_link',
             'imu_frequency': '400',
         }.items(),
+        condition=IfCondition(enable_imu_fusion),
     )
 
     # ─────────────────────────────────────────────────────
@@ -318,6 +374,7 @@ def generate_launch_description():
                 'oakd_vins.launch.py',
             ])
         ),
+        condition=IfCondition(enable_vins),
     )
 
     # ─────────────────────────────────────────────────────
@@ -355,98 +412,131 @@ def generate_launch_description():
         # ─ 参数声明 ─
         DeclareLaunchArgument(
             'enable_gps',
-            default_value='false',
+            default_value=LAUNCH_DEFAULTS['enable_gps'],
             description='Enable GPS fusion (dual EKF + NavSat). Set false for GPS-denied.',
         ),
         DeclareLaunchArgument(
             'launch_dwb',
-            default_value='false',
+            default_value=LAUNCH_DEFAULTS['launch_dwb'],
             description='Launch DWB adapter. Requires Nav2 Python modules.',
         ),
         DeclareLaunchArgument(
+            'enable_oakd_perception',
+            default_value=LAUNCH_DEFAULTS['enable_oakd_perception'],
+            description='Launch OAK-D perception pipeline.',
+        ),
+        DeclareLaunchArgument(
+            'enable_imu_fusion',
+            default_value=LAUNCH_DEFAULTS['enable_imu_fusion'],
+            description='Launch OAK-D IMU pre-fusion/debug pipeline.',
+        ),
+        DeclareLaunchArgument(
+            'enable_vins',
+            default_value=LAUNCH_DEFAULTS['enable_vins'],
+            description='Launch OAK-D stereo VINS-Fusion VIO pipeline.',
+        ),
+        DeclareLaunchArgument(
             'enable_mid360',
-            default_value='false',
+            default_value=LAUNCH_DEFAULTS['enable_mid360'],
             description='Launch MID360 driver if the configured package is installed.',
         ),
         DeclareLaunchArgument(
             'enable_lio',
-            default_value='false',
+            default_value=LAUNCH_DEFAULTS['enable_lio'],
             description='Launch LIO and fuse /lio/odometry into EKF.',
         ),
         DeclareLaunchArgument(
             'obstacle_pointcloud_source',
-            default_value='oakd',
+            default_value=LAUNCH_DEFAULTS['obstacle_pointcloud_source'],
             description='Obstacle cloud source: oakd, mid360, or both.',
         ),
         DeclareLaunchArgument(
             'oakd_pointcloud_topic',
-            default_value='/oakd/points_filtered',
+            default_value=LAUNCH_DEFAULTS['oakd_pointcloud_topic'],
             description='OAK-D filtered point cloud topic for obstacle mapping.',
         ),
         DeclareLaunchArgument(
             'mid360_pointcloud_topic',
-            default_value='/mid360/points',
+            default_value=LAUNCH_DEFAULTS['mid360_pointcloud_topic'],
             description='MID360 point cloud topic for obstacle mapping.',
         ),
         DeclareLaunchArgument(
             'mid360_custom_topic',
-            default_value='/livox/lidar',
+            default_value=LAUNCH_DEFAULTS['mid360_custom_topic'],
             description='Livox CustomMsg topic from livox_ros_driver2.',
         ),
         DeclareLaunchArgument(
             'mid360_frame_id',
-            default_value='mid360_link',
+            default_value=LAUNCH_DEFAULTS['mid360_frame_id'],
             description='Frame assigned to converted MID360 PointCloud2.',
         ),
         DeclareLaunchArgument(
             'combined_pointcloud_topic',
-            default_value='/perception/obstacle_points',
+            default_value=LAUNCH_DEFAULTS['combined_pointcloud_topic'],
             description='Output topic used when obstacle_pointcloud_source:=both.',
         ),
         DeclareLaunchArgument(
             'combined_pointcloud_frame',
-            default_value='base_link',
+            default_value=LAUNCH_DEFAULTS['combined_pointcloud_frame'],
             description='Frame for the combined obstacle point cloud.',
         ),
         DeclareLaunchArgument(
             'combined_pointcloud_publish_rate',
-            default_value='10.0',
+            default_value=LAUNCH_DEFAULTS['combined_pointcloud_publish_rate'],
             description='Combined obstacle cloud publish rate in Hz.',
         ),
         DeclareLaunchArgument(
             'combined_pointcloud_max_age_sec',
-            default_value='0.5',
+            default_value=LAUNCH_DEFAULTS['combined_pointcloud_max_age_sec'],
             description='Drop OAK-D/MID360 clouds older than this age in both mode.',
         ),
         DeclareLaunchArgument(
             'mid360_driver_package',
-            default_value='livox_ros_driver2',
+            default_value=LAUNCH_DEFAULTS['mid360_driver_package'],
             description='Optional MID360 driver package to include when enable_mid360:=true.',
         ),
         DeclareLaunchArgument(
             'mid360_driver_launch',
-            default_value='launch_ROS2/msg_MID360_launch.py',
+            default_value=LAUNCH_DEFAULTS['mid360_driver_launch'],
             description='Launch file path under the MID360 driver package share directory.',
         ),
         DeclareLaunchArgument(
             'lio_package',
-            default_value='fast_lio',
+            default_value=LAUNCH_DEFAULTS['lio_package'],
             description='Optional LIO package to include when enable_lio:=true.',
         ),
-        DeclareLaunchArgument('lio_executable', default_value='fastlio_mapping'),
-        DeclareLaunchArgument('lio_config_file', default_value='mid360.yaml'),
+        DeclareLaunchArgument(
+            'lio_executable',
+            default_value=LAUNCH_DEFAULTS['lio_executable'],
+        ),
+        DeclareLaunchArgument(
+            'lio_config_file',
+            default_value=LAUNCH_DEFAULTS['lio_config_file'],
+        ),
         DeclareLaunchArgument(
             'lio_odom_topic',
-            default_value='/lio/odometry',
+            default_value=LAUNCH_DEFAULTS['lio_odom_topic'],
             description='LIO odometry topic fused by EKF when enable_lio:=true.',
         ),
-        DeclareLaunchArgument('lio_path_topic', default_value='/lio/path'),
-        DeclareLaunchArgument('mid360_x', default_value='0.0'),
-        DeclareLaunchArgument('mid360_y', default_value='0.0'),
-        DeclareLaunchArgument('mid360_z', default_value='0.0'),
-        DeclareLaunchArgument('mid360_yaw', default_value='0.0'),
-        DeclareLaunchArgument('mid360_pitch', default_value='0.0'),
-        DeclareLaunchArgument('mid360_roll', default_value='0.0'),
+        DeclareLaunchArgument(
+            'lio_path_topic',
+            default_value=LAUNCH_DEFAULTS['lio_path_topic'],
+        ),
+        DeclareLaunchArgument('mid360_x', default_value=LAUNCH_DEFAULTS['mid360_x']),
+        DeclareLaunchArgument('mid360_y', default_value=LAUNCH_DEFAULTS['mid360_y']),
+        DeclareLaunchArgument('mid360_z', default_value=LAUNCH_DEFAULTS['mid360_z']),
+        DeclareLaunchArgument(
+            'mid360_yaw',
+            default_value=LAUNCH_DEFAULTS['mid360_yaw'],
+        ),
+        DeclareLaunchArgument(
+            'mid360_pitch',
+            default_value=LAUNCH_DEFAULTS['mid360_pitch'],
+        ),
+        DeclareLaunchArgument(
+            'mid360_roll',
+            default_value=LAUNCH_DEFAULTS['mid360_roll'],
+        ),
 
         # ─ 启动顺序（感知 → 定位 → 规划/安全/控制） ─
         oakd_perception_launch,
