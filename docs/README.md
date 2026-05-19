@@ -11,8 +11,9 @@
 - **想了解安装过程？** 查阅 [INSTALLATION.md](./INSTALLATION.md)。
 - **需要深入技术细节？** 阅读 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 - **需要规划 PX4 导航与避障？** 阅读 [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md)。
+- **只调试 OAK-D 或 MID360？** 阅读 [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md)。
 - **需要复刻第三方源码依赖？** 阅读 [SUBMODULE_PATCH_REPRODUCTION.md](./SUBMODULE_PATCH_REPRODUCTION.md)。
-- **想直接运行系统？** 使用 [../scripts/run_complete_system.sh](../scripts/run_complete_system.sh)、[../scripts/run_oakd_unified.sh](../scripts/run_oakd_unified.sh)、[../scripts/run_imu_fusion_tf.sh](../scripts/run_imu_fusion_tf.sh)。
+- **想直接运行系统？** 使用 [../scripts/run_nav_stack.sh](../scripts/run_nav_stack.sh)，单设备调试按 [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md)。
 
 ---
 
@@ -24,8 +25,9 @@
 | **INSTALLATION.md** | 虚拟环境、依赖管理、项目构建详细步骤 |
 | **ARCHITECTURE.md** | 统一节点架构、数据流、坐标系、高级用法 |
 | **PX4_NAVIGATION_STRATEGY.md** | PX4 导航与避障路线、nav 与 3D 方案对比 |
+| **SENSOR_DEBUG_GUIDE.md** | OAK-D / MID360 独立启动、话题检查、RViz 与 bag 调试 |
 | **SUBMODULE_PATCH_REPRODUCTION.md** | 第三方 submodule + patch 复刻与维护流程 |
-| **QUICK_REFERENCE.md** | 常用命令、参数示例、故障排查速速表 |
+| **QUICK_REFERENCE.md** | 常用命令、参数示例、故障排查速查表 |
 | **archive/** | 历史与参考文档（可选阅读） |
 | **README.md** | 本文件 |
 
@@ -89,8 +91,10 @@ mv UNIFIED_NODE_ARCHITECTURE.md docs/archive/
 
 - [主 README](../README.md)
 - [PX4 导航策略](./PX4_NAVIGATION_STRATEGY.md)
+- [OAK-D / MID360 独立调试指南](./SENSOR_DEBUG_GUIDE.md)
 - [Submodule + Patch 复刻流程](./SUBMODULE_PATCH_REPRODUCTION.md)
 - [完整系统启动脚本](../scripts/run_complete_system.sh)
+- [导航栈模式化启动脚本](../scripts/run_nav_stack.sh)
 - [OAK-D 统一节点脚本](../scripts/run_oakd_unified.sh)
 - [IMU 融合 + TF 广播脚本](../scripts/run_imu_fusion_tf.sh)
 - [GitHub 上该项目](https://github.com)（如有）
@@ -99,4 +103,4 @@ mv UNIFIED_NODE_ARCHITECTURE.md docs/archive/
 
 ---
 
-最后更新：2026-05-18
+最后更新：2026-05-19

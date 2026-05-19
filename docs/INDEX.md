@@ -12,6 +12,7 @@
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 系统架构、数据流、节点设计 | 架构师、集成者 | 20 min |
 | [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md) | PX4 导航与避障路线，对比 nav 与 3D 方案 | 导航集成者、算法开发者 | 15 min |
 | [OAKD_PRO_W_VINS_CALIBRATION.md](./OAKD_PRO_W_VINS_CALIBRATION.md) | OAK-D Pro W 与 VINS-Fusion 标定、静止漂移排查 | VIO 集成者、调试人员 | 15 min |
+| [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md) | OAK-D / MID360 单设备启动、话题检查、RViz 与 bag 调试 | 调试人员、集成者 | 10 min |
 | [SUBMODULE_PATCH_REPRODUCTION.md](./SUBMODULE_PATCH_REPRODUCTION.md) | 第三方 submodule + patch 复刻与维护流程 | 开发者、集成者 | 10 min |
 | [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) | 常用命令、参数、问题排查 | 所有用户 | 10 min |
 | [../README.md](../README.md) | 项目主文档、快速开始 | 所有用户 | 10 min |
@@ -25,7 +26,7 @@
 1. 阅读 [../README.md](../README.md#快速开始-quick-start) — **快速开始** 节
 2. 按 [INSTALLATION.md](./INSTALLATION.md) — 配置虚拟环境
 3. 查阅 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) — 启动节点
-4. 直接使用标准入口脚本： [scripts/run_complete_system.sh](../scripts/run_complete_system.sh)、[scripts/run_oakd_unified.sh](../scripts/run_oakd_unified.sh)、[scripts/run_imu_fusion_tf.sh](../scripts/run_imu_fusion_tf.sh)
+4. 直接使用标准入口脚本： [scripts/run_nav_stack.sh](../scripts/run_nav_stack.sh)，单设备调试见 [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md)
 
 ### 深入学习
 
@@ -33,6 +34,7 @@
 - 需要规划 PX4 导航路线？ → [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md)
 - 想调整参数与配置？ → [../README.md](../README.md#5-配置与参数) 或 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常用启动参数)
 - OAK-D Pro W 接入 VINS 静止漂移？ → [OAKD_PRO_W_VINS_CALIBRATION.md](./OAKD_PRO_W_VINS_CALIBRATION.md)
+- 只调试 OAK-D 或 MID360？ → [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md)
 - 需要复刻 MID360/FAST-LIO2 第三方源码？ → [SUBMODULE_PATCH_REPRODUCTION.md](./SUBMODULE_PATCH_REPRODUCTION.md)
 - 想确认启动入口？ → [../README.md](../README.md#4-运行与启动) 或 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#启动命令)
 - 遇到问题？ → [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常见问题与解决) 或 [../README.md](../README.md#10-故障排查)
@@ -53,6 +55,7 @@ docs/
 ├── INSTALLATION.md               # 环境安装指南
 ├── ARCHITECTURE.md               # 系统架构设计
 ├── PX4_NAVIGATION_STRATEGY.md    # PX4 导航与避障路线对比
+├── SENSOR_DEBUG_GUIDE.md         # OAK-D / MID360 独立调试
 ├── SUBMODULE_PATCH_REPRODUCTION.md # 第三方源码复刻与 patch 流程
 ├── QUICK_REFERENCE.md            # 快速命令参考
 └── archive/                      # 历史文档
@@ -116,8 +119,19 @@ docs/
 - 检查第三方源码没有误提交到父仓库
 - patch 冲突与恢复方法
 
+### SENSOR_DEBUG_GUIDE.md
+
+**用途**：单独调试 OAK-D 相机和 Livox MID360，避免主 README 变成命令清单。
+
+**内容**：
+- OAK-D 场景预设脚本、手动传参、话题检查
+- OAK-D IMU 预融合和 RViz 检查
+- MID360 网络配置、点云链路、FAST-LIO2 检查
+- 传感器专项 ros2 bag 录制与常见问题
+
 ### 标准启动脚本
 
+- [scripts/run_nav_stack.sh](../scripts/run_nav_stack.sh) — 导航栈模式化启动入口
 - [scripts/run_complete_system.sh](../scripts/run_complete_system.sh) — 完整系统一键编排
 - [scripts/run_oakd_unified.sh](../scripts/run_oakd_unified.sh) — OAK-D 统一节点入口
 - [scripts/run_imu_fusion_tf.sh](../scripts/run_imu_fusion_tf.sh) — IMU 融合 + TF 广播入口
@@ -137,6 +151,7 @@ docs/
 ## 🔗 相关链接
 
 - [主 README](../README.md) — 项目概览与快速开始
+- [OAK-D / MID360 独立调试指南](./SENSOR_DEBUG_GUIDE.md)
 - [DepthAI 官方文档](https://docs.luxonis.com/)
 - [ROS 2 官方文档](https://docs.ros.org/en/humble/)
 - [uv 工具文档](https://docs.astral.sh/uv/)
@@ -153,4 +168,4 @@ docs/
 
 ---
 
-最后更新：2026-05-18
+最后更新：2026-05-19

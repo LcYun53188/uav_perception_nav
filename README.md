@@ -89,13 +89,14 @@ env ROS_LOG_DIR=/tmp/ros_log ./scripts/with_venv.sh colcon build \
 
 5. 启动对应系统：
 
-- 仅看 OAK-D 感知：`./scripts/run_oakd_unified.sh`
 - 启动默认导航栈：`./scripts/run_nav_stack.sh oakd`
 - 启动 MID360 替代 OAK-D 点云避障：`./scripts/run_nav_stack.sh mid360`
 - 启动 MID360 + FAST-LIO2 冗余里程计：`./scripts/run_nav_stack.sh mid360_lio`
 - 启动纯 MID360/LIO 模式：`./scripts/run_nav_stack.sh mid360_only`
 
-6. 打开 RViz：按脚本提示将 `Fixed Frame` 设为 `map`，再添加 `/oakd/points`、`/mid360/points`、`/perception/obstacle_points` 或 `/local_map/occupancy` 显示。
+6. 打开 RViz：完整导航链路将 `Fixed Frame` 设为 `map`，再添加 `/local_map/occupancy`、`/perception/obstacle_points` 或当前点云源。
+
+只看 OAK-D 或 MID360 单设备输出时，按 [docs/SENSOR_DEBUG_GUIDE.md](./docs/SENSOR_DEBUG_GUIDE.md) 的独立调试流程启动。
 
 ---
 
@@ -131,10 +132,6 @@ MID360 + FAST-LIO2 接入见 [docs/MID360_FAST_LIO2_INTEGRATION.md](./docs/MID36
 - 架构说明
 - 安装与构建
 - 运行与启动
-  - 快速启动脚本
-  - 手动运行示例
-  - 统一节点（IMU + 深度）
-  - IMU 与姿态链路
 - 配置与参数
 - 可视化（RViz）
 - 测试与验证（在线/离线）
@@ -159,7 +156,7 @@ MID360 + FAST-LIO2 接入见 [docs/MID360_FAST_LIO2_INTEGRATION.md](./docs/MID36
 - `uav_bringup`：统一启动编排与中央参数管理；
 - 多个启动脚本与配置预设，便于在室内/户外/黑暗场景间切换。
 
-推荐使用“一体化/统一节点”方案（在单进程中同时管理深度与 IMU），避免设备冲突（X_LINK_DEVICE_ALREADY_IN_USE）。详见后文“统一节点”节与 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)。
+推荐使用“一体化/统一节点”方案（在单进程中同时管理深度与 IMU），避免设备冲突（X_LINK_DEVICE_ALREADY_IN_USE）。OAK-D / MID360 单设备调试见 [docs/SENSOR_DEBUG_GUIDE.md](./docs/SENSOR_DEBUG_GUIDE.md)，架构说明见 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)。
 
 ### 1.1 包职责与话题接口
 
@@ -316,114 +313,9 @@ source install/setup.bash
 6. `px4_comm_bridge`：接收 `/nav/cmd_vel` 与安全状态，输出 PX4 offboard 控制，同时发布 PX4 数据源。
 7. 可选 `livox_ros_driver2` / `fast_lio`：启用 MID360 点云和 LIO 冗余里程计。
 
-如果只调试 OAK-D 感知，可单独使用 `./scripts/run_oakd_unified.sh`。如果验证完整导航链路，优先使用 `ros2 launch uav_bringup nav_stack.launch.py`。
+如果只调试 OAK-D 或 MID360 传感器，不需要启动完整导航栈，请看 [docs/SENSOR_DEBUG_GUIDE.md](./docs/SENSOR_DEBUG_GUIDE.md)。
 
-### 4.1 快速启动脚本（推荐）
-
-项目提供四个场景预设脚本（位于 `scripts/`）：
-
-| 脚本 | 被动立体 | 主动立体 | 场景 |
-|------|---------|---------|------|
-| `run_oakd_outdoor.sh` | ✓ | ✗ | 户外强光（低功耗） |
-| `run_oakd_indoor.sh`  | ✓ | ✓ | 室内弱光（高精度） |
-| `run_oakd_balance.sh` | ✓ | ✓ | 平衡模式（通用） |
-| `run_oakd_active_max.sh` | ✗ | ✓ | 黑暗环境（最高密度） |
-
-使用示例：
-
-```bash
-./scripts/run_oakd_balance.sh
-```
-
-每个脚本会：激活 `.venv` → 加载 ROS2 环境 → 读取 YAML 配置 → 启动点云发布节点。
-
-适合的场景：
-
-- `run_oakd_outdoor.sh`：户外光照充足、优先低功耗；
-- `run_oakd_indoor.sh`：室内或弱光环境、优先精度；
-- `run_oakd_balance.sh`：默认推荐模式；
-- `run_oakd_active_max.sh`：黑暗环境、优先主动红外照明。
-
-### 4.2 手动运行示例（可传参）
-
-```bash
-./scripts/with_venv.sh ./.venv/bin/oakd_depth_node --ros-args \
-  -p enable_passive_stereo:=true \
-  -p enable_active_stereo:=true \
-  -p ir_intensity:=800 \
-  -p sampling_step:=2 \
-  -p min_depth:=200 \
-  -p max_depth:=5000
-```
-
-运行后列出话题以确认：
-
-```bash
-./scripts/with_venv.sh ros2 topic list | grep /oakd/points
-```
-
-### 4.3 统一节点（推荐：IMU + 深度同进程）
-
-**问题**：旧架构中分别运行 IMU 节点和深度节点会引起设备被占用错误（X_LINK_DEVICE_ALREADY_IN_USE）。
-
-**解决**：使用 `oakd_unified_node` 在单一进程中同时处理 IMU 与深度。
-
-启动（推荐使用脚本）：
-
-```bash
-./scripts/run_oakd_unified.sh
-```
-
-`scripts/run_complete_system.sh` 是旧的 OAK-D + IMU 融合 + RViz 调试脚本，不是当前完整导航栈入口。完整调度请使用 `ros2 launch uav_bringup nav_stack.launch.py`。
-
-统一节点常用参数示例：
-
-```bash
-./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py \
-  enable_passive_stereo:=true enable_active_stereo:=true ir_intensity:=1000 pointcloud_frequency:=30
-```
-
-统一节点发布的主题（常见）：
-
-- `/oakd/imu/raw` — 原始 IMU（Imu）约 400Hz
-- `/oakd/left/image_raw`、`/oakd/right/image_raw` — 双目灰度图像，供 VINS 使用
-- `/oakd/points` — 深度点云（PointCloud2）约 20Hz
-- `/oakd/points_filtered` — 过滤后的深度点云，供建图/安全监控使用
-
-### 4.4 IMU 与姿态链路
-
-当前主定位链路中，姿态来源不是 `/px4/imu.orientation`，而是单独的 `/px4/attitude`：
-
-```text
-PX4 /fmu/out/vehicle_attitude
-  → px4_comm_bridge
-  → /px4/attitude
-  → robot_localization pose0，仅融合 roll/pitch
-
-PX4 /px4/vehicle_imu
-  → px4_comm_bridge
-  → /px4/imu
-  → robot_localization imu0，仅融合角速度与线加速度
-```
-
-OAK-D 自身 IMU 链路仍保留：
-
-```text
-/oakd/imu/raw → imu_fusion → /oakd/imu/fused
-```
-
-该链路用于调试、预览和后续扩展；当前主 TF 树不依赖 `imu_fusion` 发布动态 TF。
-
-手动调试 OAK-D IMU 预融合：
-
-```bash
-./scripts/run_oakd_unified.sh
-./scripts/run_imu_fusion_tf.sh
-```
-
-注意：不要让旧的 `imu_tf_broadcaster` 向主 `/tf` 发布 `map -> oakd_imu_link`，否则 `oakd_imu_link` 会同时拥有 EKF 静态链路和 IMU 动态链路两个父帧。
-
-### 4.5 导航栈
+### 4.1 导航栈
 
 导航栈推荐通过脚本启动，减少手写 launch 参数：
 
@@ -493,7 +385,7 @@ ros2 launch uav_bringup nav_stack.launch.py \
 注意：旧 `local_planner` 仍保留为兼容/回退入口；统一导航栈默认使用 `se2_dwa_local_planner`。
 MID360 网络、外参与排查步骤见 [docs/MID360_FAST_LIO2_INTEGRATION.md](./docs/MID360_FAST_LIO2_INTEGRATION.md)。
 
-### 4.6 一键验证顺序
+### 4.2 一键验证顺序
 
 如果你想按最少步骤确认整个仓库的启动链路，建议使用下面这个顺序：
 
@@ -502,11 +394,8 @@ cd /home/nuc/Program/uav_vision_ws
 source .venv/bin/activate
 source install/setup.bash
 
-# 1. OAK-D 感知
-./scripts/run_oakd_unified.sh
-
-# 2. 导航栈（另一个终端）
-ros2 launch uav_bringup nav_stack.launch.py
+# 导航栈
+./scripts/run_nav_stack.sh oakd
 ```
 
 检查点：
@@ -520,6 +409,8 @@ ros2 launch uav_bringup nav_stack.launch.py
 - `/odometry/local` 和 `map -> odom -> base_link` 是否正常；
 - `/local_map/occupancy`、`/nav/cmd_vel`、`/nav/emergency` 是否正常；
 - 若使用 PX4，再检查 `/fmu/in/*` 是否有消息。
+
+如需单独确认 OAK-D 图像/点云/IMU、MID360 `/livox/lidar`、`/mid360/points`、FAST-LIO2 `/lio/odometry` 或 ros2 bag 录制，请使用 [docs/SENSOR_DEBUG_GUIDE.md](./docs/SENSOR_DEBUG_GUIDE.md)。
 
 ---
 
@@ -579,25 +470,11 @@ src/livox_ros_driver2/config/MID360_config.json
 
 ## 6. 可视化（RViz）
 
-### 6.1 启动 RViz 并添加点云
-
 ```bash
 ./scripts/with_venv.sh rviz2
 ```
 
-设置建议：
-
-- `Fixed Frame`：`map`（完整导航链路）或 `oakd_camera_optical_frame`（仅调试 OAK-D 点云）；
-- 添加 `PointCloud2`，选择 `/oakd/points_filtered` 或 `/oakd/points`；
-- 启用 MID360 时，可添加 `/mid360/points` 或 `/perception/obstacle_points`；
-- 调整 `Style`、`Size`（0.01–0.05m）、`Color Transformer`（Intensity/RGB/FlatColor）。
-
-### 6.2 若要点云进入主 TF 树
-
-- 确保 `oakd_unified.launch.py` 发布 `oakd_imu_link -> oakd_camera_optical_frame`；
-- 确保 `ekf_launch.py` 发布 `map -> odom -> base_link -> oakd_imu_link`；
-- 将 RViz `Fixed Frame` 设为 `map`；
-- 添加 `TF` 显示以验证 frame 关系。
+完整导航链路建议将 `Fixed Frame` 设为 `map`，并添加 `TF`、`/local_map/occupancy`、`/nav/cmd_vel`、`/nav/emergency`、当前避障点云源。OAK-D 或 MID360 单独观察的 RViz frame 与点云话题见 [docs/SENSOR_DEBUG_GUIDE.md](./docs/SENSOR_DEBUG_GUIDE.md)。
 
 ---
 
@@ -606,14 +483,10 @@ src/livox_ros_driver2/config/MID360_config.json
 ### 7.1 在线系统检查
 
 ```bash
-./scripts/run_oakd_unified.sh
 source install/setup.bash
-ros2 launch uav_bringup nav_stack.launch.py
-./scripts/with_venv.sh ros2 topic list | grep -E "/oakd/points|/oakd/imu|/oakd/.*/image_raw"
+./scripts/run_nav_stack.sh oakd
 ./scripts/with_venv.sh ros2 topic list | grep -E "/vio/odometry|/px4/attitude|/px4/imu|/odometry/local"
 ./scripts/with_venv.sh ros2 topic list | grep -E "/local_map/occupancy|/nav/cmd_vel|/nav/emergency|/fmu/in/"
-./scripts/with_venv.sh ros2 topic list | grep -E "/livox|/mid360|/lio|/perception/obstacle_points"
-./scripts/with_venv.sh ros2 topic hz /oakd/points
 ./scripts/with_venv.sh ros2 topic hz /vio/odometry
 ./scripts/with_venv.sh ros2 topic hz /odometry/local
 ./scripts/with_venv.sh ros2 topic hz /nav/cmd_vel
@@ -623,22 +496,15 @@ ros2 launch uav_bringup nav_stack.launch.py
 ### 7.2 录制与离线回放（ros2 bag）
 
 ```bash
-./scripts/with_venv.sh ros2 bag record -o test_run /oakd/points_filtered /vio/odometry /odometry/local /tf /tf_static
-# MID360 场景可额外录制：
-./scripts/with_venv.sh ros2 bag record -o mid360_run /livox/lidar /livox/imu /mid360/points /lio/odometry /odometry/local /tf /tf_static
-# 停止录制后回放
-./scripts/with_venv.sh ros2 bag play test_run_0.db3
+./scripts/with_venv.sh ros2 bag record -o nav_test /vio/odometry /odometry/local /local_map/occupancy /nav/cmd_vel /nav/emergency /tf /tf_static
+./scripts/with_venv.sh ros2 bag play nav_test
 ```
+
+OAK-D / MID360 专项 bag 录制列表见 [docs/SENSOR_DEBUG_GUIDE.md](./docs/SENSOR_DEBUG_GUIDE.md)。
 
 ### 7.3 常用调试命令
 
 ```bash
-# 列出 oakd 相关进程
-ps aux | grep oakd | grep -v grep
-# 强制停止
-pkill -9 -f "oakd"
-# 检查 depthai
-./scripts/with_venv.sh python -c "import depthai, sys; print('depthai', depthai.__version__)"
 # 导出 TF 拓扑
 ./scripts/with_venv.sh ros2 run tf2_tools view_frames
 ```
@@ -678,15 +544,10 @@ ros2 run tf2_ros tf2_echo map base_link
 ## 9. 故障排查
 
 - 常见问题：ModuleNotFoundError: depthai → 确认 `.venv` 中安装 depthai（见第 3 节）。
-- 设备冲突：优先使用统一节点或确保仅有一个进程访问设备。可用 `pkill` 停止冗余进程。
-- RViz 不显示点云：检查话题 `/oakd/points`、Fixed Frame 与 TF 链路。
 - 导航栈持续发布零速度：检查 `/local_map/occupancy` 是否超时、`map→base_link` TF 是否存在，以及 `/nav/emergency` 是否为 true。
-- MID360 无 `/livox/lidar`：检查 MID360 上电、网口 IP、`MID360_config.json` 的 host IP 和设备 IP。
-- 有 `/livox/lidar` 但无 `/mid360/points`：检查 `livox_custom_to_pointcloud2` 是否启动，以及 `enable_mid360:=true`。
-- FAST-LIO2 无 `/lio/odometry`：检查 `/livox/lidar` 和 `/livox/imu` 是否同时存在，确认 `enable_lio:=true` 和 `lio_config_file`。
 - VS Code Git 显示 `src/livox_ros_driver2` 等子仓库有改动：这是 vendor patch 已应用后的正常 submodule dirty 状态，父仓库通过 `patches/vendor/*.patch` 管理这些改动。
 
-常用排查命令见第 7 节。
+OAK-D 设备占用、DepthAI、点云显示、MID360 网络、`/mid360/points`、FAST-LIO2 `/lio/odometry` 等传感器专项问题见 [docs/SENSOR_DEBUG_GUIDE.md](./docs/SENSOR_DEBUG_GUIDE.md)。
 
 ---
 
@@ -719,6 +580,7 @@ uav_vision_ws/
 │   ├── TF_FRAMES.md                     #   TF 坐标变换系统说明
 │   ├── ARCHITECTURE.md                  #   系统架构设计
 │   ├── MID360_FAST_LIO2_INTEGRATION.md  #   MID360 + FAST-LIO2 接入
+│   ├── SENSOR_DEBUG_GUIDE.md            #   OAK-D / MID360 独立调试
 │   ├── SUBMODULE_PATCH_REPRODUCTION.md  #   submodule + patch 复刻流程
 │   └── ...
 └── README.md
