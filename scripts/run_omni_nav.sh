@@ -3,18 +3,31 @@ set -eo pipefail
 
 WS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-POINTCLOUD_SOURCE="oakd"
-ENABLE_BRIDGE="false"
-PLANNER="se2_dwa"
-ENABLE_OFFLINE_MAP="false"
-OFFLINE_MAP_YAML=""
+if [[ -f "$WS_DIR/scripts/nav_launch.env" ]]; then
+  source "$WS_DIR/scripts/nav_launch.env"
+fi
+if [[ -f "$WS_DIR/scripts/nav_launch.local.env" ]]; then
+  source "$WS_DIR/scripts/nav_launch.local.env"
+fi
+
+POINTCLOUD_SOURCE="${OMNI_POINTCLOUD_SOURCE:-oakd}"
+ENABLE_BRIDGE="${OMNI_ENABLE_BRIDGE:-false}"
+PLANNER="${OMNI_PLANNER:-se2_dwa}"
+ENABLE_OFFLINE_MAP="${OMNI_ENABLE_OFFLINE_MAP:-false}"
+OFFLINE_MAP_YAML="${OMNI_OFFLINE_MAP_YAML:-}"
 DRY_RUN="false"
 EXTRA_ARGS=()
+if declare -p OMNI_EXTRA_ARGS >/dev/null 2>&1; then
+  EXTRA_ARGS=("${OMNI_EXTRA_ARGS[@]}")
+fi
 
 usage() {
   cat <<'EOF'
 Usage:
   scripts/run_omni_nav.sh [options] [launch_arg:=value ...]
+
+Defaults are read from scripts/nav_launch.env and optional
+scripts/nav_launch.local.env. Command-line options override variables.
 
 Options:
   --pointcloud-source <oakd|mid360|both>

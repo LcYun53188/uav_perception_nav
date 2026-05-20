@@ -3,16 +3,29 @@ set -eo pipefail
 
 WS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-ODOM_SOURCE="vio"
-POINTCLOUD_SOURCE="oakd"
-ENABLE_GPS="false"
+if [[ -f "$WS_DIR/scripts/nav_launch.env" ]]; then
+  source "$WS_DIR/scripts/nav_launch.env"
+fi
+if [[ -f "$WS_DIR/scripts/nav_launch.local.env" ]]; then
+  source "$WS_DIR/scripts/nav_launch.local.env"
+fi
+
+ODOM_SOURCE="${NAV_ODOM_SOURCE:-vio}"
+POINTCLOUD_SOURCE="${NAV_POINTCLOUD_SOURCE:-oakd}"
+ENABLE_GPS="${NAV_ENABLE_GPS:-false}"
 DRY_RUN="false"
 EXTRA_ARGS=()
+if declare -p NAV_EXTRA_ARGS >/dev/null 2>&1; then
+  EXTRA_ARGS=("${NAV_EXTRA_ARGS[@]}")
+fi
 
 usage() {
   cat <<'EOF'
 Usage:
   scripts/run_nav_stack.sh [options] [launch_arg:=value ...]
+
+Defaults are read from scripts/nav_launch.env and optional
+scripts/nav_launch.local.env. Command-line options override variables.
 
 Options:
   --odom-source <vio|lio|both>

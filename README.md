@@ -327,6 +327,11 @@ source install/setup.bash
 ./scripts/run_nav_stack.sh --odom-source lio --pointcloud-source mid360    # 纯 MID360/LIO
 ```
 
+常用模式建议直接编辑 [scripts/nav_launch.env](./scripts/nav_launch.env) 中的变量，例如
+`NAV_ODOM_SOURCE`、`NAV_POINTCLOUD_SOURCE`、`OMNI_PLANNER`、
+`OMNI_ENABLE_OFFLINE_MAP`。脚本会自动读取该文件；命令行参数只用于临时覆盖。
+如果需要保留本机私有配置，可新建 `scripts/nav_launch.local.env`，该文件不会进入 git。
+
 地面全向轮入口可额外接入 Nav2 格式离线低分辨率地图。启用后，离线静态占用格会和实时点云局部图融合，融合结果仍发布到 `/local_map/occupancy` 供局部规划使用：
 
 ```bash
@@ -523,18 +528,17 @@ src/livox_ros_driver2/config/MID360_config.json
 ```bash
 source install/setup.bash
 ./scripts/run_nav_stack.sh
-./scripts/with_venv.sh ros2 topic list | grep -E "/vio/odometry|/px4/attitude|/px4/imu|/odometry/local"
-./scripts/with_venv.sh ros2 topic list | grep -E "/local_map/occupancy|/nav/cmd_vel|/nav/emergency|/fmu/in/"
-./scripts/with_venv.sh ros2 topic hz /vio/odometry
-./scripts/with_venv.sh ros2 topic hz /odometry/local
-./scripts/with_venv.sh ros2 topic hz /nav/cmd_vel
-./scripts/with_venv.sh ros2 topic hz /nav/emergency
+./scripts/check_nav_stack.sh
+./scripts/check_nav_stack.sh --mid360 --px4
+./scripts/check_omni_nav.sh --offline-map --bridge
+./scripts/check_offline_map.sh
 ```
 
 ### 7.3 录制与离线回放（ros2 bag）
 
 ```bash
-./scripts/with_venv.sh ros2 bag record -o nav_test /vio/odometry /odometry/local /local_map/occupancy /nav/cmd_vel /nav/emergency /tf /tf_static
+./scripts/record_nav_debug_bag.sh -o nav_test
+./scripts/record_nav_debug_bag.sh -o omni_map_test --offline-map --omni
 ./scripts/with_venv.sh ros2 bag play nav_test
 ```
 
@@ -545,6 +549,9 @@ OAK-D / MID360 专项 bag 录制列表见 [docs/SENSOR_DEBUG_GUIDE.md](./docs/SE
 ```bash
 # 导出 TF 拓扑
 ./scripts/with_venv.sh ros2 run tf2_tools view_frames
+
+# 导航 RViz 视图
+./scripts/run_rviz_nav.sh
 ```
 
 ---

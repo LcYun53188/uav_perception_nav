@@ -25,6 +25,19 @@
 ./scripts/run_omni_nav.sh
 ```
 
+常用参数优先在 `scripts/nav_launch.env` 里改变量：
+
+```bash
+OMNI_POINTCLOUD_SOURCE="oakd"
+OMNI_ENABLE_BRIDGE="false"
+OMNI_PLANNER="se2_dwa"
+OMNI_ENABLE_OFFLINE_MAP="false"
+OMNI_OFFLINE_MAP_YAML=""
+```
+
+如果某台车需要固定私有配置，新建 `scripts/nav_launch.local.env` 覆盖即可。
+命令行参数仍可用于临时覆盖变量。
+
 启用串口底盘桥接：
 
 ```bash
@@ -53,6 +66,14 @@
 
 ```bash
 ./scripts/run_omni_nav.sh --offline-map /path/to/map.yaml
+```
+
+检查全向轮导航链路：
+
+```bash
+./scripts/check_omni_nav.sh
+./scripts/check_omni_nav.sh --offline-map --bridge
+./scripts/check_offline_map.sh
 ```
 
 脚本后面可以继续追加底层 launch 参数：
@@ -199,6 +220,12 @@ mcu_yaw_auto_zero: true
 - `frame_id` 与实时局部图一致，默认都是 `map`；
 - 地图 YAML 使用 Nav2 map server 格式；
 - 静态地图和 TF 对齐后再上车，否则静态障碍会被叠加到错误位置。
+
+调试记录建议使用：
+
+```bash
+./scripts/record_nav_debug_bag.sh --offline-map --omni
+```
 
 `omni_nav_stack.yaml` 中的速度、加速度、避障半径已经按地面全向轮做了初始收敛。上车前仍需按底盘能力重新标定：
 

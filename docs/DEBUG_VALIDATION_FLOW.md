@@ -25,6 +25,9 @@ cd /home/nuc/Program/uav_vision_ws
 source .venv/bin/activate
 source install/setup.bash
 
+# 常用启动/调试默认值集中在这里，命令行参数可临时覆盖。
+$EDITOR scripts/nav_launch.env
+
 git submodule status --recursive
 ./scripts/with_venv.sh colcon build --packages-select uav_bringup --symlink-install
 env ROS_LOG_DIR=/tmp/ros_log ./scripts/with_venv.sh ros2 launch uav_bringup nav_stack.launch.py --show-args
@@ -148,6 +151,7 @@ OAK-D VIO + MID360 LIO 并列融合链路：
 检查：
 
 ```bash
+./scripts/check_nav_stack.sh
 ./scripts/with_venv.sh ros2 topic hz /odometry/local
 ./scripts/with_venv.sh ros2 run tf2_ros tf2_echo map base_link
 ./scripts/with_venv.sh ros2 run tf2_ros tf2_echo base_link oakd_imu_link
@@ -174,6 +178,7 @@ OAK-D VIO + MID360 LIO 并列融合链路：
 检查：
 
 ```bash
+./scripts/check_nav_stack.sh --mid360
 ./scripts/with_venv.sh ros2 topic hz /local_map/occupancy
 ./scripts/with_venv.sh ros2 topic echo /local_map/occupancy --once
 ```
@@ -245,6 +250,9 @@ TF
 系统级记录：
 
 ```bash
+./scripts/record_nav_debug_bag.sh -o nav_validation
+
+# 或手动指定话题：
 ./scripts/with_venv.sh ros2 bag record -o nav_validation \
   /vio/odometry /lio/odometry /odometry/local \
   /oakd/points_filtered /mid360/points /perception/obstacle_points \
