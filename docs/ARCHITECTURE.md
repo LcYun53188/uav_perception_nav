@@ -202,20 +202,25 @@ map → odom → base_link → oakd_imu_link → oakd_camera_optical_frame
 
 ## 启动方式
 
-### 方式 1：完整启动脚本
+### 方式 1：导航栈统一启动脚本
 
 ```bash
-./scripts/run_complete_system.sh
+./scripts/run_nav_stack.sh --odom-source vio --pointcloud-source oakd
 ```
 
 ### 方式 2：逐步手动启动
 
 ```bash
 # 终端 1: OAK-D 统一节点
-./scripts/run_oakd_unified.sh
+src/oakd_perception/scripts/run_oakd_balance.sh
 
 # 终端 2: IMU 融合 + TF 广播
-./scripts/run_imu_fusion_tf.sh
+./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py \
+  launch_imu_node:=false \
+  raw_topic_0:=/oakd/imu/raw \
+  fused_topic_0:=/oakd/imu/fused \
+  frame_id_0:=oakd_imu_link \
+  parent_frame:=map
 
 # 终端 3: RViz 可视化
 ./scripts/with_venv.sh rviz2
@@ -225,7 +230,7 @@ map → odom → base_link → oakd_imu_link → oakd_camera_optical_frame
 
 ```bash
 # 仅统一节点（不含融合）
-./scripts/run_oakd_unified.sh
+src/oakd_perception/scripts/run_oakd_balance.sh
 ```
 
 ## 使用方式：提前建图 vs 不提前建图

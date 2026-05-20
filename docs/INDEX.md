@@ -11,7 +11,7 @@
 | [INSTALLATION.md](./INSTALLATION.md) | 虚拟环境、依赖、构建 | 开发者、新用户 | 15 min |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 系统架构、数据流、节点设计 | 架构师、集成者 | 20 min |
 | [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md) | PX4 导航与避障路线，对比 nav 与 3D 方案 | 导航集成者、算法开发者 | 15 min |
-| [TF_FRAMES.md](./TF_FRAMES.md) | 坐标系、TF 树、OAK-D/MID360 安装外参与内部标定修改位置 | 集成者、调试人员 | 10 min |
+| [TF_FRAMES.md](./TF_FRAMES.md) | 坐标系、TF 树、传感器外参、全向轮下位机坐标开关与验收 | 集成者、调试人员 | 10 min |
 | [OAKD_PRO_W_VINS_CALIBRATION.md](./OAKD_PRO_W_VINS_CALIBRATION.md) | OAK-D Pro W 与 VINS-Fusion 标定、静止漂移排查 | VIO 集成者、调试人员 | 15 min |
 | [DEBUG_VALIDATION_FLOW.md](./DEBUG_VALIDATION_FLOW.md) | 从环境、传感器、里程计、EKF、地图到 PX4 的逐层验证流程 | 调试人员、集成者 | 15 min |
 | [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md) | OAK-D / MID360 单设备启动、话题检查、RViz 与 bag 调试 | 调试人员、集成者 | 10 min |
@@ -37,6 +37,7 @@
 - 需要规划 PX4 导航路线？ → [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md)
 - 想调整参数与配置？ → [../README.md](../README.md#5-配置与参数) 或 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常用启动参数)
 - 想修改 OAK-D / MID360 安装位置、姿态或内部外参？ → [TF_FRAMES.md](./TF_FRAMES.md#53-静态外参配置)
+- 想确认全向轮下位机坐标系开关和验收？ → [TF_FRAMES.md](./TF_FRAMES.md#34-地面全向轮与下位机坐标系)
 - 想逐层验证调试链路？ → [DEBUG_VALIDATION_FLOW.md](./DEBUG_VALIDATION_FLOW.md)
 - OAK-D Pro W 接入 VINS 静止漂移？ → [OAKD_PRO_W_VINS_CALIBRATION.md](./OAKD_PRO_W_VINS_CALIBRATION.md)
 - 只调试 OAK-D 或 MID360？ → [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md)
@@ -151,9 +152,8 @@ docs/
 ### 标准启动脚本
 
 - [scripts/run_nav_stack.sh](../scripts/run_nav_stack.sh) — 导航栈模式化启动入口
-- [scripts/run_complete_system.sh](../scripts/run_complete_system.sh) — 完整系统一键编排
-- [scripts/run_oakd_unified.sh](../scripts/run_oakd_unified.sh) — OAK-D 统一节点入口
-- [scripts/run_imu_fusion_tf.sh](../scripts/run_imu_fusion_tf.sh) — IMU 融合 + TF 广播入口
+- [scripts/run_omni_nav.sh](../scripts/run_omni_nav.sh) — 地面全向轮导航启动入口
+- [src/oakd_perception/scripts](../src/oakd_perception/scripts/README.md) — OAK-D 单设备场景预设入口
 
 ### 归档文档（archive/）
 
@@ -183,7 +183,7 @@ docs/
 - **第一次用？** 先读 [../README.md](../README.md)，再读 [INSTALLATION.md](./INSTALLATION.md)。
 - **需要快速答案？** 查 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md)。
 - **想写代码？** 读 [ARCHITECTURE.md](./ARCHITECTURE.md) 了解设计。
-- **想直接启动？** 先用 [run_complete_system.sh](../scripts/run_complete_system.sh)。
+- **想直接启动？** 先用 [run_nav_stack.sh](../scripts/run_nav_stack.sh)。
 - **遇到问题？** 先查 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常见问题与解决)，再查 [../README.md](../README.md#10-故障排查)。
 
 ---

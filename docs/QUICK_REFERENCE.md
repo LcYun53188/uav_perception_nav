@@ -9,21 +9,25 @@
 ### 完整系统（推荐）
 
 ```bash
-./scripts/run_complete_system.sh
-# 选择 1: 完整系统（OAK-D + IMU融合 + RViz）
+./scripts/run_nav_stack.sh --odom-source vio --pointcloud-source oakd
 ```
 
 ### 仅硬件节点（统一节点）
 
 ```bash
 ./scripts/with_venv.sh ros2 launch oakd_perception oakd_unified.launch.py
-./scripts/run_oakd_unified.sh
+src/oakd_perception/scripts/run_oakd_balance.sh
 ```
 
 ### 仅 IMU 融合 + TF 广播
 
 ```bash
-./scripts/run_imu_fusion_tf.sh
+./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py \
+  launch_imu_node:=false \
+  raw_topic_0:=/oakd/imu/raw \
+  fused_topic_0:=/oakd/imu/fused \
+  frame_id_0:=oakd_imu_link \
+  parent_frame:=map
 ```
 
 ### 验证系统
@@ -199,7 +203,7 @@ workspace/
 │   └── launch/
 │       └── oakd_unified.launch.py    # Launch 文件
 ├── scripts/
-│   ├── run_complete_system.sh        # 完整启动
+│   ├── run_nav_stack.sh              # 导航栈统一启动
 │   └── with_venv.sh                  # 虚拟环境包裹
 └── docs/
     ├── QUICK_REFERENCE.md            # 本文件

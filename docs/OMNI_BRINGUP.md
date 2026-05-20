@@ -22,25 +22,37 @@
 仅启动全向轮导航层，不发送到底盘：
 
 ```bash
-./scripts/with_venv.sh ros2 launch omni_bringup omni_nav.launch.py
+./scripts/run_omni_nav.sh
 ```
 
 启用串口底盘桥接：
 
 ```bash
-./scripts/with_venv.sh ros2 launch omni_bringup omni_nav.launch.py enable_ground_serial_bridge:=true
+./scripts/run_omni_nav.sh --bridge
 ```
 
 使用 MID360 作为障碍点云：
 
 ```bash
-./scripts/with_venv.sh ros2 launch omni_bringup omni_nav.launch.py enable_mid360:=true obstacle_pointcloud_source:=mid360
+./scripts/run_omni_nav.sh --pointcloud-source mid360
 ```
 
 同时使用 OAK-D 和 MID360：
 
 ```bash
-./scripts/with_venv.sh ros2 launch omni_bringup omni_nav.launch.py enable_mid360:=true obstacle_pointcloud_source:=both
+./scripts/run_omni_nav.sh --pointcloud-source both
+```
+
+使用 DWB bridge 而不是默认 SE(2) DWA：
+
+```bash
+./scripts/run_omni_nav.sh --planner dwb
+```
+
+脚本后面可以继续追加底层 launch 参数：
+
+```bash
+./scripts/run_omni_nav.sh --pointcloud-source mid360 --bridge mid360_frame_id:=mid360_link
 ```
 
 ## 主要话题
@@ -179,6 +191,78 @@ max_yaw_accel
 robot_radius
 stop_clearance
 ```
+
+## 下位机坐标系开关
+
+默认关闭下位机世界坐标系，使用车体系速度：
+
+```yaml
+mcu_velocity_frame: base_link
+```
+
+含义：
+
+```text
+上位机 /nav/cmd_vel -> TF 转 base_link -> 串口发送 vx_base/vy_base/wz_base
+```
+
+这是推荐模式，要求下位机按 `x 前、y 左、z 上、wz 逆时针为正` 执行速度。
+
+如果下位机必须按自己的世界系执行速度，启用：
+
+```yaml
+mcu_velocity_frame: mcu_world
+mcu_yaw_compensation_mode: yaw_error
+mcu_yaw_reference_frame: odom
+require_feedback: true
+require_mcu_yaw_for_mcu_world: true
+```
+
+影响：
+
+- 必须回传 `yaw_mrad`。
+- `yaw_base` 来自上位机 TF：`odom/map -> base_link`。
+- `yaw_error = yaw_mcu - yaw_base` 只用于修正下位机坐标漂移。
+- 目标追踪和 yaw 追踪仍由上位机闭环，`wz` 直接作为角速度下发。
+- 回传帧率和延迟会影响边转边走时的方向稳定性，建议 `20Hz` 以上。
+
+## 下位机坐标调试
+
+1. 先用 `base_link` 模式验证轴向：
+
+   ```text
+   vx > 0：前进
+   vy > 0：左移
+   wz > 0：逆时针旋转
+   ```
+
+2. 若方向相反，优先修下位机协议或电机映射。下位机 yaw 符号相反时设置：
+
+   ```yaml
+   mcu_yaw_sign: -1.0
+   ```
+
+3. 再启用 `mcu_world` 补偿，观察 `/base/status` 与 `/base/diagnostics`。
+
+4. 原地旋转时检查：
+
+   ```text
+   yaw_base 与 yaw_mcu 同号变化
+   yaw_error 不应随真实旋转持续增大
+   ```
+
+5. TF 断开或下位机 yaw 缺失时，节点应下发 0 速度，不继续按旧方向执行。
+
+## 下位机坐标验收
+
+验收通过标准：
+
+- `base_link` 轴向与实车一致。
+- `mcu_velocity_frame: base_link` 可以稳定执行手动速度命令。
+- 启用 `mcu_world` 后，`yaw_mcu`、`yaw_base`、`yaw_error` 变化符合预期。
+- 边平移边转 yaw 时，车辆没有明显因下位机 yaw 漂移导致的方向偏转。
+- 断开 TF、断开串口或底盘回传低于阈值时，系统进入停车/故障状态。
+- 下位机世界坐标只用于补偿或诊断，不作为 ROS 主 TF 坐标源。
 
 ## 串口回传帧率
 

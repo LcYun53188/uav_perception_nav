@@ -26,6 +26,7 @@
 | **INDEX.md** | 文档导索与导航，推荐首先阅读 |
 | **INSTALLATION.md** | 虚拟环境、依赖管理、项目构建详细步骤 |
 | **ARCHITECTURE.md** | 统一节点架构、数据流、坐标系、高级用法 |
+| **TF_FRAMES.md** | 坐标系、TF 树、传感器外参、全向轮下位机坐标开关与验收 |
 | **PX4_NAVIGATION_STRATEGY.md** | PX4 导航与避障路线、nav 与 3D 方案对比 |
 | **DEBUG_VALIDATION_FLOW.md** | 从环境、传感器、里程计、EKF、地图到 PX4 的逐层验证流程 |
 | **SENSOR_DEBUG_GUIDE.md** | OAK-D / MID360 独立启动、话题检查、RViz 与 bag 调试 |
@@ -99,10 +100,9 @@ mv UNIFIED_NODE_ARCHITECTURE.md docs/archive/
 - [OAK-D / MID360 独立调试指南](./SENSOR_DEBUG_GUIDE.md)
 - [地面全向轮启动包说明](./OMNI_BRINGUP.md)
 - [Submodule + Patch 复刻流程](./SUBMODULE_PATCH_REPRODUCTION.md)
-- [完整系统启动脚本](../scripts/run_complete_system.sh)
-- [导航栈模式化启动脚本](../scripts/run_nav_stack.sh)
-- [OAK-D 统一节点脚本](../scripts/run_oakd_unified.sh)
-- [IMU 融合 + TF 广播脚本](../scripts/run_imu_fusion_tf.sh)
+- [导航栈统一启动脚本](../scripts/run_nav_stack.sh)
+- [地面全向轮启动脚本](../scripts/run_omni_nav.sh)
+- [OAK-D 包内场景预设脚本](../src/oakd_perception/scripts/README.md)
 - [GitHub 上该项目](https://github.com)（如有）
 - [DepthAI 官方](https://docs.luxonis.com/)
 - [ROS 2 官方](https://docs.ros.org/)

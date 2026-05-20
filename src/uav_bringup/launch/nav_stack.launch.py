@@ -10,9 +10,9 @@ Unified navigation stack launch file (W1-D1-D3: 自包含化)
 
 用法:
   ros2 launch uav_bringup nav_stack.launch.py enable_gps:=false
-  ros2 launch uav_bringup nav_stack.launch.py enable_mid360:=true obstacle_pointcloud_source:=mid360
-  ros2 launch uav_bringup nav_stack.launch.py enable_mid360:=true obstacle_pointcloud_source:=both enable_lio:=true
-  ros2 launch uav_bringup nav_stack.launch.py enable_oakd_perception:=false enable_imu_fusion:=false enable_vins:=false enable_mid360:=true enable_lio:=true obstacle_pointcloud_source:=mid360
+  ros2 launch uav_bringup nav_stack.launch.py odometry_source:=vio obstacle_pointcloud_source:=mid360
+  ros2 launch uav_bringup nav_stack.launch.py odometry_source:=both obstacle_pointcloud_source:=both
+  ros2 launch uav_bringup nav_stack.launch.py odometry_source:=lio obstacle_pointcloud_source:=mid360
 """
 
 import os
@@ -26,7 +26,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogI
 from launch.actions import OpaqueFunction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -38,6 +38,7 @@ LAUNCH_DEFAULTS = {
     'enable_oakd_perception': 'true',
     'enable_imu_fusion': 'true',
     'enable_vins': 'true',
+    'odometry_source': 'vio',
 
     # Optional MID360 / LIO switches
     'enable_mid360': 'false',
@@ -130,6 +131,15 @@ def _selected_obstacle_topic(context):
     return oakd_topic
 
 
+def _source_expr(source_arg, *values):
+    return PythonExpression([
+        "'",
+        LaunchConfiguration(source_arg),
+        "'.lower() in ",
+        repr(tuple(values)),
+    ])
+
+
 def _optional_launch(context, enabled, package_arg, launch_arg, label):
     if not enabled:
         return []
@@ -187,8 +197,16 @@ def launch_setup(context, *args, **kwargs):
 
     source = LaunchConfiguration('obstacle_pointcloud_source').perform(context).lower()
     selected_topic = _selected_obstacle_topic(context)
-    enable_mid360 = _as_bool(LaunchConfiguration('enable_mid360').perform(context))
-    enable_lio = _as_bool(LaunchConfiguration('enable_lio').perform(context))
+    odometry_source = LaunchConfiguration('odometry_source').perform(context).lower()
+    enable_mid360 = (
+        _as_bool(LaunchConfiguration('enable_mid360').perform(context))
+        or source in ('mid360', 'both')
+        or odometry_source in ('lio', 'both')
+    )
+    enable_lio = (
+        _as_bool(LaunchConfiguration('enable_lio').perform(context))
+        or odometry_source in ('lio', 'both')
+    )
     launch_dwb = LaunchConfiguration('launch_dwb')
 
     nodes = []
@@ -348,9 +366,8 @@ def launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     enable_gps = LaunchConfiguration('enable_gps')
-    enable_oakd_perception = LaunchConfiguration('enable_oakd_perception')
-    enable_imu_fusion = LaunchConfiguration('enable_imu_fusion')
-    enable_vins = LaunchConfiguration('enable_vins')
+    oakd_needed = _source_expr('obstacle_pointcloud_source', 'oakd', 'both')
+    vio_needed = _source_expr('odometry_source', 'vio', 'both')
     enable_mid360 = LaunchConfiguration('enable_mid360')
     enable_lio = LaunchConfiguration('enable_lio')
 
@@ -370,7 +387,14 @@ def generate_launch_description():
             'pointcloud_frequency': '20',
             'enable_passive_stereo': 'true',
         }.items(),
-        condition=IfCondition(enable_oakd_perception),
+        condition=IfCondition(PythonExpression([
+            "'",
+            LaunchConfiguration('enable_oakd_perception'),
+            "'.lower() == 'true' or ",
+            oakd_needed,
+            " or ",
+            vio_needed,
+        ])),
     )
 
     # ─────────────────────────────────────────────────────
@@ -390,7 +414,15 @@ def generate_launch_description():
             'frame_id': 'oakd_imu_link',
             'imu_frequency': '400',
         }.items(),
-        condition=IfCondition(enable_imu_fusion),
+        condition=IfCondition(PythonExpression([
+            "'",
+            LaunchConfiguration('enable_imu_fusion'),
+            "'.lower() == 'true' and (",
+            oakd_needed,
+            " or ",
+            vio_needed,
+            ")",
+        ])),
     )
 
     # ─────────────────────────────────────────────────────
@@ -404,7 +436,12 @@ def generate_launch_description():
                 'oakd_vins.launch.py',
             ])
         ),
-        condition=IfCondition(enable_vins),
+        condition=IfCondition(PythonExpression([
+            "'",
+            LaunchConfiguration('enable_vins'),
+            "'.lower() == 'true' and ",
+            vio_needed,
+        ])),
     )
 
     # ─────────────────────────────────────────────────────
@@ -425,6 +462,7 @@ def generate_launch_description():
             'enable_gps': enable_gps,
             'enable_mid360': enable_mid360,
             'enable_lio': enable_lio,
+            'odometry_source': LaunchConfiguration('odometry_source'),
             'lio_odom_topic': LaunchConfiguration('lio_odom_topic'),
             'mid360_x': LaunchConfiguration('mid360_x'),
             'mid360_y': LaunchConfiguration('mid360_y'),
@@ -464,6 +502,11 @@ def generate_launch_description():
             'enable_vins',
             default_value=LAUNCH_DEFAULTS['enable_vins'],
             description='Launch OAK-D stereo VINS-Fusion VIO pipeline.',
+        ),
+        DeclareLaunchArgument(
+            'odometry_source',
+            default_value=LAUNCH_DEFAULTS['odometry_source'],
+            description='EKF odometry source: vio, lio, or both.',
         ),
         DeclareLaunchArgument(
             'enable_mid360',

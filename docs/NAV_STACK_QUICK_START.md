@@ -281,7 +281,12 @@ python3 /tmp/test_nav_flow.py
 ros2 run tf2_tools view_frames
 
 # 启动 IMU TF 广播器
-./scripts/run_imu_fusion_tf.sh
+./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py \
+  launch_imu_node:=false \
+  raw_topic_0:=/oakd/imu/raw \
+  fused_topic_0:=/oakd/imu/fused \
+  frame_id_0:=oakd_imu_link \
+  parent_frame:=map
 ```
 
 ### 问题 4: 参数未生效

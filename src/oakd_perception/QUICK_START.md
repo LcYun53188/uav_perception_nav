@@ -1,9 +1,8 @@
 # 快速参考（已整合）
 
 📌 **主入口：** [README.md](README.md)
-📌 **统一启动：** [../scripts/run_complete_system.sh](../../scripts/run_complete_system.sh)
-📌 **硬件节点：** [../scripts/run_oakd_unified.sh](../../scripts/run_oakd_unified.sh)
-📌 **IMU 融合：** [../scripts/run_imu_fusion_tf.sh](../../scripts/run_imu_fusion_tf.sh)
+📌 **导航栈统一启动：** [run_nav_stack.sh](../../scripts/run_nav_stack.sh)
+📌 **OAK-D 场景脚本：** [scripts/README.md](scripts/README.md)
 
 ---
 

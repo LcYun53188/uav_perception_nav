@@ -161,5 +161,5 @@ echo ""
 
 echo "🎯 下一步:"
 echo "   运行完整系统:"
-echo "   ./scripts/run_complete_system.sh"
+echo "   ./scripts/run_nav_stack.sh --odom-source vio --pointcloud-source oakd"
 echo ""

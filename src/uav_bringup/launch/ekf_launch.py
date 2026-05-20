@@ -3,12 +3,12 @@ Launch file for dual EKF sensor fusion with optional GPS.
 
 Modes:
   enable_gps:=false (default):
-    - EKF_odom: odom→base_link (VIO + IMU)
+    - EKF_odom: odom→base_link (selected odometry + IMU)
     - Static TF: map→odom (identity, map=odom)
 
   enable_gps:=true:
-    - EKF_odom: odom→base_link (VIO + IMU)
-    - EKF_map:  map→odom (VIO + IMU + GPS correction)
+    - EKF_odom: odom→base_link (selected odometry + IMU)
+    - EKF_map:  map→odom (selected odometry + IMU + GPS correction)
     - NavSat Transform: GPS WGS84→ENU
 
 Both modes publish static transforms:
@@ -20,7 +20,7 @@ Output topics:
   - /odometry/global (from EKF_map, GPS mode only)
 
 Optional:
-  enable_lio:=true adds /lio/odometry as a redundant odometry source.
+  odometry_source:=vio|lio|both selects the odometry source fused by EKF.
   enable_mid360:=true publishes base_link→mid360_link static extrinsics.
 """
 
@@ -34,10 +34,16 @@ from launch_ros.substitutions import FindPackageShare
 def launch_setup(context, *args, **kwargs):
     enable_gps = LaunchConfiguration('enable_gps').perform(context).lower() == 'true'
     enable_lio = LaunchConfiguration('enable_lio').perform(context).lower() == 'true'
+    odometry_source = LaunchConfiguration('odometry_source').perform(context).lower()
     enable_mid360 = (
         LaunchConfiguration('enable_mid360').perform(context).lower() == 'true'
     )
     lio_odom_topic = LaunchConfiguration('lio_odom_topic').perform(context)
+
+    if odometry_source not in ('vio', 'lio', 'both'):
+        raise RuntimeError(
+            f'Invalid odometry_source "{odometry_source}". Expected vio, lio, or both.'
+        )
 
     config_file = PathJoinSubstitution([
         FindPackageShare('uav_bringup'),
@@ -47,7 +53,25 @@ def launch_setup(context, *args, **kwargs):
 
     nodes = []
     ekf_odom_parameters = [config_file]
-    if enable_lio:
+
+    # dual_ekf.yaml defaults odom0 to /vio/odometry. Override it when LIO is
+    # selected as the primary odometry source.
+    if odometry_source == 'lio':
+        ekf_odom_parameters.append({
+            'odom0': lio_odom_topic,
+            'odom0_config': [
+                True, True, True,
+                False, False, False,
+                True, True, True,
+                False, False, False,
+                False, False, False,
+            ],
+            'odom0_queue_size': 10,
+            'odom0_nodelay': True,
+            'odom0_differential': False,
+            'odom0_relative': False,
+        })
+    elif odometry_source == 'both' or enable_lio:
         ekf_odom_parameters.append({
             'odom1': lio_odom_topic,
             'odom1_config': [
@@ -79,7 +103,22 @@ def launch_setup(context, *args, **kwargs):
 
     if enable_gps:
         ekf_map_parameters = [config_file]
-        if enable_lio:
+        if odometry_source == 'lio':
+            ekf_map_parameters.append({
+                'odom0': lio_odom_topic,
+                'odom0_config': [
+                    True, True, True,
+                    False, False, False,
+                    True, True, True,
+                    False, False, False,
+                    False, False, False,
+                ],
+                'odom0_queue_size': 10,
+                'odom0_nodelay': True,
+                'odom0_differential': False,
+                'odom0_relative': False,
+            })
+        elif odometry_source == 'both' or enable_lio:
             ekf_map_parameters.append({
                 'odom2': lio_odom_topic,
                 'odom2_config': [
@@ -184,7 +223,7 @@ def launch_setup(context, *args, **kwargs):
         arguments=['0', '0', '0', '0', '0', '0', 'base_link', 'gps_link'],
     ))
 
-    if enable_mid360 or enable_lio:
+    if enable_mid360 or enable_lio or odometry_source in ('lio', 'both'):
         # ── 静态外参：base_link → mid360_link ──
         #
         # 这组参数描述 MID360 作为一个整体安装在无人机机体上的位置和姿态，
@@ -250,7 +289,12 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'enable_lio',
             default_value='false',
-            description='Fuse LIO odometry as a redundant EKF input.',
+            description='Start compatibility switch for LIO-related static TF.',
+        ),
+        DeclareLaunchArgument(
+            'odometry_source',
+            default_value='vio',
+            description='EKF odometry source: vio, lio, or both.',
         ),
         DeclareLaunchArgument(
             'lio_odom_topic',

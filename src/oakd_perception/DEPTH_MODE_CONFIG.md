@@ -45,7 +45,7 @@
 
 ## 使用方法
 
-> 生产/日常运行建议先通过 [run_oakd_unified.sh](../../scripts/run_oakd_unified.sh) 启动 OAK-D 统一节点，再按需结合 IMU 融合与 RViz。下面命令主要用于单独测试深度链路或验证参数。
+> 生产/日常运行建议通过根目录 [run_nav_stack.sh](../../scripts/run_nav_stack.sh) 启动导航栈；单独调试 OAK-D 时使用本包 `scripts/` 下的场景预设。下面命令主要用于单独测试深度链路或验证参数。
 
 ### 方法 1: 命令行参数运行
 

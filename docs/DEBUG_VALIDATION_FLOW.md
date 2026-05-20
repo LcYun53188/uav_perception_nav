@@ -11,8 +11,8 @@ OAK-D / MID360 单设备启动细节见 [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_G
 | L0 | 环境、submodule、构建可用 | `colcon build` / `--show-args` | 包可编译，launch 参数能列出 |
 | L1 | 单传感器数据可用 | OAK-D 或 MID360 独立启动 | 原始话题持续发布，频率稳定 |
 | L2 | 单里程计可用 | VINS-Fusion 或 FAST-LIO2 | `/vio/odometry` 或 `/lio/odometry` 输出连续 |
-| L3 | EKF 融合定位和 TF 可用 | `run_nav_stack.sh oakd` / `mid360_lio` / `mid360_only` | `/odometry/local`、`map -> odom -> base_link` 正常 |
-| L4 | 避障点云进入局部地图 | `oakd` / `mid360` / `both` | `/local_map/occupancy` 随障碍变化 |
+| L3 | EKF 融合定位和 TF 可用 | `run_nav_stack.sh` + `--odom-source ...` | `/odometry/local`、`map -> odom -> base_link` 正常 |
+| L4 | 避障点云进入局部地图 | `run_nav_stack.sh` + `--pointcloud-source ...` | `/local_map/occupancy` 随障碍变化 |
 | L5 | 局部规划可用 | 导航栈 + 目标输入 | `/nav/cmd_vel` 非异常、方向合理 |
 | L6 | 安全监控可用 | 导航栈 | `/nav/emergency` 状态符合障碍/超时情况 |
 | L7 | PX4 桥接可用 | 导航栈 + PX4 | `/fmu/in/*` 有输出，offboard 前先地面验证 |
@@ -50,7 +50,7 @@ env ROS_LOG_DIR=/tmp/ros_log ./scripts/with_venv.sh colcon build \
 ### OAK-D
 
 ```bash
-./scripts/run_oakd_unified.sh
+src/oakd_perception/scripts/run_oakd_balance.sh
 ```
 
 另一个终端检查：
@@ -69,7 +69,7 @@ env ROS_LOG_DIR=/tmp/ros_log ./scripts/with_venv.sh colcon build \
 ### MID360
 
 ```bash
-./scripts/run_nav_stack.sh mid360 enable_oakd_perception:=false enable_imu_fusion:=false enable_vins:=false
+./scripts/run_nav_stack.sh --odom-source lio --pointcloud-source mid360
 ```
 
 另一个终端检查：
@@ -92,7 +92,7 @@ env ROS_LOG_DIR=/tmp/ros_log ./scripts/with_venv.sh colcon build \
 ### VINS-Fusion
 
 ```bash
-./scripts/run_nav_stack.sh oakd enable_gps:=false
+./scripts/run_nav_stack.sh enable_gps:=false
 ```
 
 检查：
@@ -110,7 +110,7 @@ env ROS_LOG_DIR=/tmp/ros_log ./scripts/with_venv.sh colcon build \
 ### FAST-LIO2
 
 ```bash
-./scripts/run_nav_stack.sh mid360_only
+./scripts/run_nav_stack.sh --odom-source lio --pointcloud-source mid360
 ```
 
 检查：
@@ -130,19 +130,19 @@ env ROS_LOG_DIR=/tmp/ros_log ./scripts/with_venv.sh colcon build \
 OAK-D VIO 定位链路：
 
 ```bash
-./scripts/run_nav_stack.sh oakd
+./scripts/run_nav_stack.sh
 ```
 
 OAK-D VIO + MID360 LIO 并列融合链路：
 
 ```bash
-./scripts/run_nav_stack.sh mid360_lio
+./scripts/run_nav_stack.sh --odom-source both --pointcloud-source both
 ```
 
 纯 MID360/LIO 链路：
 
 ```bash
-./scripts/run_nav_stack.sh mid360_only
+./scripts/run_nav_stack.sh --odom-source lio --pointcloud-source mid360
 ```
 
 检查：
@@ -166,9 +166,9 @@ OAK-D VIO + MID360 LIO 并列融合链路：
 分别验证三种点云源：
 
 ```bash
-./scripts/run_nav_stack.sh oakd
-./scripts/run_nav_stack.sh mid360
-./scripts/run_nav_stack.sh both
+./scripts/run_nav_stack.sh
+./scripts/run_nav_stack.sh --odom-source vio --pointcloud-source mid360
+./scripts/run_nav_stack.sh --odom-source vio --pointcloud-source both
 ```
 
 检查：

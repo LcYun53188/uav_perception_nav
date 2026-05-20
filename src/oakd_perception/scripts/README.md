@@ -4,9 +4,7 @@
 
 如果你只是想启动系统，优先使用：
 
-- [完整系统](../../../scripts/run_complete_system.sh)
-- [OAK-D 统一节点](../../../scripts/run_oakd_unified.sh)
-- [IMU 融合 + TF 广播](../../../scripts/run_imu_fusion_tf.sh)
+- [导航栈统一启动](../../../scripts/run_nav_stack.sh)
 
 如果你想调整深度模式参数，请参考：
 

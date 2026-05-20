@@ -89,10 +89,9 @@ env ROS_LOG_DIR=/tmp/ros_log ./scripts/with_venv.sh colcon build \
 
 5. 启动对应系统：
 
-- 启动默认导航栈：`./scripts/run_nav_stack.sh oakd`
-- 启动 MID360 替代 OAK-D 点云避障：`./scripts/run_nav_stack.sh mid360`
-- 启动 VIO + MID360 FAST-LIO2 并列里程计：`./scripts/run_nav_stack.sh mid360_lio`
-- 启动纯 MID360/LIO 模式：`./scripts/run_nav_stack.sh mid360_only`
+- 默认 OAK-D/VIO + OAK-D 点云：`./scripts/run_nav_stack.sh`
+- LIO 里程计 + MID360 点云：`./scripts/run_nav_stack.sh --odom-source lio --pointcloud-source mid360`
+- VIO/LIO 双里程计 + 双点云融合：`./scripts/run_nav_stack.sh --odom-source both --pointcloud-source both`
 
 6. 打开 RViz：完整导航链路将 `Fixed Frame` 设为 `map`，再添加 `/local_map/occupancy`、`/perception/obstacle_points` 或当前点云源。
 
@@ -320,18 +319,18 @@ source install/setup.bash
 导航栈推荐通过脚本启动，减少手写 launch 参数：
 
 ```bash
-./scripts/run_nav_stack.sh oakd         # 默认 OAK-D + VINS
-./scripts/run_nav_stack.sh gps          # OAK-D + VINS + GPS
-./scripts/run_nav_stack.sh mid360       # MID360 替代 OAK-D 点云
-./scripts/run_nav_stack.sh both         # OAK-D + MID360 点云融合
-./scripts/run_nav_stack.sh mid360_lio   # OAK-D + MID360 + FAST-LIO2
-./scripts/run_nav_stack.sh mid360_only  # 关闭 OAK-D/VINS，仅用 MID360 + FAST-LIO2
+./scripts/run_nav_stack.sh                                             # 默认 OAK-D/VIO + OAK-D 点云
+./scripts/run_nav_stack.sh --gps                                       # 默认链路 + GPS 融合
+./scripts/run_nav_stack.sh --odom-source vio --pointcloud-source oakd       # 默认 OAK-D/VIO + OAK-D 点云
+./scripts/run_nav_stack.sh --odom-source vio --pointcloud-source mid360    # VIO 里程计 + MID360 点云
+./scripts/run_nav_stack.sh --odom-source both --pointcloud-source both     # VIO/LIO 双里程计 + 双点云融合
+./scripts/run_nav_stack.sh --odom-source lio --pointcloud-source mid360    # 纯 MID360/LIO
 ```
 
 脚本后面可以继续追加 launch 参数，例如：
 
 ```bash
-./scripts/run_nav_stack.sh mid360 mid360_x:=0.08 mid360_z:=0.05
+./scripts/run_nav_stack.sh --odom-source lio --pointcloud-source mid360 mid360_x:=0.08 mid360_z:=0.05
 ```
 
 也可以直接使用底层 launch 入口。`nav_stack.launch.py` 文件顶部的 `LAUNCH_DEFAULTS` 集中维护常用默认值：
@@ -345,27 +344,22 @@ ros2 launch uav_bringup nav_stack.launch.py enable_gps:=true
 
 # MID360 替代 OAK-D 点云做避障和局部建图
 ros2 launch uav_bringup nav_stack.launch.py \
-  enable_mid360:=true \
+  odometry_source:=vio \
   obstacle_pointcloud_source:=mid360
 
 # OAK-D + MID360 点云融合做避障和局部建图
 ros2 launch uav_bringup nav_stack.launch.py \
-  enable_mid360:=true \
+  odometry_source:=vio \
   obstacle_pointcloud_source:=both
 
 # VIO + MID360 FAST-LIO2 并列里程计
 ros2 launch uav_bringup nav_stack.launch.py \
-  enable_mid360:=true \
-  enable_lio:=true \
+  odometry_source:=both \
   obstacle_pointcloud_source:=both
 
-# 纯 MID360/LIO 模式：关闭 OAK-D 感知、OAK-D IMU 融合和 VINS
+# 纯 MID360/LIO 模式
 ros2 launch uav_bringup nav_stack.launch.py \
-  enable_oakd_perception:=false \
-  enable_imu_fusion:=false \
-  enable_vins:=false \
-  enable_mid360:=true \
-  enable_lio:=true \
+  odometry_source:=lio \
   obstacle_pointcloud_source:=mid360
 ```
 
@@ -377,7 +371,7 @@ ros2 launch uav_bringup nav_stack.launch.py \
 - `local_map_builder` 订阅 `/oakd/points_filtered`，通过 TF 投影生成 `/local_map/occupancy`；
 - 启用 MID360 时，`local_map_builder` 和 `safety_monitor` 可改用 `/mid360/points` 或 `/perception/obstacle_points`；
 - 启用 FAST-LIO2 时，FAST-LIO2 消费 `/livox/lidar` 和 `/livox/imu`，输出 `/lio/odometry`；VIO 与 LIO 是并列里程计输入，当前 EKF 配置对 LIO 融合位置和速度；
-- 关闭 OAK-D 时，应同时设置 `enable_oakd_perception:=false enable_imu_fusion:=false enable_vins:=false`，并把 `obstacle_pointcloud_source` 改为 `mid360`；
+- 使用 `--odom-source lio --pointcloud-source mid360` 时，脚本会关闭 OAK-D/VINS，并启用 MID360/FAST-LIO2；
 - `se2_dwa_local_planner` 消费局部栅格、目标与 TF，发布 `/nav/cmd_vel`，其中 `linear.x/y` 为 ENU 平面速度，`angular.z` 为 ENU yaw rate；
 - `safety_monitor` 订阅 `/oakd/points` 并发布 `/nav/emergency`；
 - `px4_comm_bridge` 桥接到 PX4，不可用时降级运行。
@@ -395,7 +389,7 @@ source .venv/bin/activate
 source install/setup.bash
 
 # 导航栈
-./scripts/run_nav_stack.sh oakd
+./scripts/run_nav_stack.sh
 ```
 
 检查点：
@@ -450,6 +444,7 @@ source install/setup.bash
 | `enable_oakd_perception` | `true` | 是否启动 OAK-D 感知 pipeline |
 | `enable_imu_fusion` | `true` | 是否启动 OAK-D IMU 预融合/调试 pipeline |
 | `enable_vins` | `true` | 是否启动 OAK-D stereo VINS-Fusion VIO |
+| `odometry_source` | `vio` | EKF 里程计源：`vio`、`lio`、`both` |
 | `enable_mid360` | `false` | 是否启动 MID360 驱动和点云转换 |
 | `enable_lio` | `false` | 是否启动 FAST-LIO2 并把 `/lio/odometry` 接入 EKF |
 | `obstacle_pointcloud_source` | `oakd` | 避障点云源：`oakd`、`mid360`、`both` |
@@ -521,7 +516,7 @@ src/livox_ros_driver2/config/MID360_config.json
 
 ```bash
 source install/setup.bash
-./scripts/run_nav_stack.sh oakd
+./scripts/run_nav_stack.sh
 ./scripts/with_venv.sh ros2 topic list | grep -E "/vio/odometry|/px4/attitude|/px4/imu|/odometry/local"
 ./scripts/with_venv.sh ros2 topic list | grep -E "/local_map/occupancy|/nav/cmd_vel|/nav/emergency|/fmu/in/"
 ./scripts/with_venv.sh ros2 topic hz /vio/odometry
@@ -611,6 +606,7 @@ uav_vision_ws/
 ├── patches/vendor/                       # 第三方 submodule 本项目适配补丁
 ├── scripts/                              # 快速启动脚本与工具
 │   ├── run_nav_stack.sh                  #   导航栈模式化启动入口
+│   ├── run_omni_nav.sh                   #   地面全向轮导航启动入口
 │   ├── apply_vendor_patches.sh           #   应用第三方 patch
 │   └── build_livox_sdk2.sh               #   构建 Livox-SDK2 到 .deps/
 ├── docs/                                 # 文档

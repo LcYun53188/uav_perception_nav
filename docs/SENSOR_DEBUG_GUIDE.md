@@ -34,16 +34,16 @@ source install/setup.bash
 常用入口：
 
 ```bash
-./scripts/run_oakd_unified.sh
+src/oakd_perception/scripts/run_oakd_balance.sh
 ```
 
 或直接运行某个预设：
 
 ```bash
-./scripts/run_oakd_balance.sh
-./scripts/run_oakd_outdoor.sh
-./scripts/run_oakd_indoor.sh
-./scripts/run_oakd_active_max.sh
+src/oakd_perception/scripts/run_oakd_balance.sh
+src/oakd_perception/scripts/run_oakd_outdoor.sh
+src/oakd_perception/scripts/run_oakd_indoor.sh
+src/oakd_perception/scripts/run_oakd_active_max.sh
 ```
 
 ### 手动传参
@@ -97,8 +97,13 @@ OAK-D 自身 IMU 链路：
 启动：
 
 ```bash
-./scripts/run_oakd_unified.sh
-./scripts/run_imu_fusion_tf.sh
+src/oakd_perception/scripts/run_oakd_balance.sh
+./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py \
+  launch_imu_node:=false \
+  raw_topic_0:=/oakd/imu/raw \
+  fused_topic_0:=/oakd/imu/fused \
+  frame_id_0:=oakd_imu_link \
+  parent_frame:=map
 ```
 
 注意：不要让旧的 `imu_tf_broadcaster` 向主 `/tf` 发布 `map -> oakd_imu_link`，否则 `oakd_imu_link` 会同时拥有 EKF 静态链路和 IMU 动态链路两个父帧。
@@ -176,7 +181,7 @@ ping 192.168.1.12
 推荐使用导航栈脚本：
 
 ```bash
-./scripts/run_nav_stack.sh mid360
+./scripts/run_nav_stack.sh --odom-source vio --pointcloud-source mid360
 ```
 
 只看 MID360 相关话题：
@@ -199,13 +204,13 @@ ping 192.168.1.12
 OAK-D + MID360 + LIO：
 
 ```bash
-./scripts/run_nav_stack.sh mid360_lio
+./scripts/run_nav_stack.sh --odom-source both --pointcloud-source both
 ```
 
 纯 MID360/LIO 模式：
 
 ```bash
-./scripts/run_nav_stack.sh mid360_only
+./scripts/run_nav_stack.sh --odom-source lio --pointcloud-source mid360
 ```
 
 检查：
@@ -232,7 +237,7 @@ mid360_x mid360_y mid360_z mid360_yaw mid360_pitch mid360_roll
 示例：
 
 ```bash
-./scripts/run_nav_stack.sh mid360 mid360_x:=0.08 mid360_y:=0.0 mid360_z:=0.05
+./scripts/run_nav_stack.sh --odom-source vio --pointcloud-source mid360 mid360_x:=0.08 mid360_y:=0.0 mid360_z:=0.05
 ```
 
 检查 TF：

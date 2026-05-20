@@ -222,21 +222,26 @@ filtered, stats = filter.filter_adaptive(points)
 
 ```bash
 # 终端1：启动OAK-D统一节点
-./scripts/run_oakd_unified.sh
+./scripts/run_oakd_balance.sh
 
 # 终端2：启动IMU融合 + TF广播（可选）
-./scripts/run_imu_fusion_tf.sh
+../../scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py \
+  launch_imu_node:=false \
+  raw_topic_0:=/oakd/imu/raw \
+  fused_topic_0:=/oakd/imu/fused \
+  frame_id_0:=oakd_imu_link \
+  parent_frame:=map
 
 # 终端3：启动可视化RViz（可选）
-./scripts/with_venv.sh rviz2
+../../scripts/with_venv.sh rviz2
 ```
 
-> 说明：`run_oakd_unified.sh` 负责 OAK-D 统一节点，`run_imu_fusion_tf.sh` 负责 IMU 融合与 TF 广播；`run_complete_system.sh` 提供一键编排入口。
+> 说明：本包 `scripts/run_oakd_*.sh` 负责 OAK-D 场景预设；完整导航栈由根目录 `scripts/run_nav_stack.sh` 统一编排。
 
 ### 方式2：一键启动完整系统
 
 ```bash
-./scripts/run_complete_system.sh
+../../scripts/run_nav_stack.sh --odom-source vio --pointcloud-source oakd
 ```
 
 ### 方式3：独立测试单节点

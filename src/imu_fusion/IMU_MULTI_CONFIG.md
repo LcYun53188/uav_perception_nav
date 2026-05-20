@@ -37,8 +37,13 @@ oakd_imu_tf_broadcaster  # 已弃用
 # 新推荐方式
 ros2 launch imu_fusion imu_fusion.launch.py
 
-# 推荐脚本入口（与 OAK-D 统一节点配套）
-./scripts/run_imu_fusion_tf.sh
+# 推荐命令入口（与 OAK-D 统一节点配套）
+./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py \
+  launch_imu_node:=false \
+  raw_topic_0:=/oakd/imu/raw \
+  fused_topic_0:=/oakd/imu/fused \
+  frame_id_0:=oakd_imu_link \
+  parent_frame:=map
 
 # 或使用旧启动文件（向后兼容）
 ros2 launch imu_fusion oakd_imu_fusion.launch.py
@@ -366,13 +371,18 @@ tf_buffer.lookup_transform('map', 'oakd_imu_link', rclpy.time.Time())
 
 ```bash
 # OAK-D 统一节点
-./scripts/run_oakd_unified.sh
+src/oakd_perception/scripts/run_oakd_balance.sh
 
 # IMU 融合 + TF 广播
-./scripts/run_imu_fusion_tf.sh
+./scripts/with_venv.sh ros2 launch imu_fusion imu_fusion.launch.py \
+  launch_imu_node:=false \
+  raw_topic_0:=/oakd/imu/raw \
+  fused_topic_0:=/oakd/imu/fused \
+  frame_id_0:=oakd_imu_link \
+  parent_frame:=map
 
 # 一键完整系统
-./scripts/run_complete_system.sh
+./scripts/run_nav_stack.sh --odom-source vio --pointcloud-source oakd
 ```
 
 ## 总结
