@@ -255,7 +255,11 @@ src/oakd_perception/scripts/run_oakd_balance.sh
 说明：
 
 - 这套流程的重点是“先验证地图生成能力，再投入使用”；
-- 目前仓库没有独立的离线地图加载器，所以这里的“提前建图”不是指把地图文件预先导入系统，而是指在任务开始前先把建图链路跑稳。
+- 地面全向轮入口支持通过 `./scripts/run_omni_nav.sh --offline-map /path/to/map.yaml`
+  加载 Nav2 格式离线低分辨率地图；
+- 启用离线地图后，实时点云局部图先发布到 `/local_map/sensor_occupancy`，
+  离线地图发布到 `/static_map/occupancy`，融合后的 `/local_map/occupancy`
+  继续作为局部规划输入。
 
 ### 2. 不提前建图
 
@@ -290,8 +294,8 @@ src/oakd_perception/scripts/run_oakd_balance.sh
 #### 提前建图模式
 
 1. 启动感知与融合：确认 `/oakd/imu/raw`、`/oakd/points_filtered` 和 `/tf` 正常，同时保留 `/oakd/points` 供调试使用。
-2. 启动导航栈：运行 `ros2 launch uav_bringup nav_stack.launch.py`。
-3. 检查地图：确认 `/local_map/occupancy` 持续更新，且 `frame_id` 为 `map`。
+2. 地面全向轮可用 `./scripts/run_omni_nav.sh --offline-map /path/to/map.yaml` 启动离线低图融合。
+3. 检查地图：确认 `/static_map/occupancy`、`/local_map/sensor_occupancy` 和 `/local_map/occupancy` 持续更新，且 `frame_id` 为 `map`。
 4. 检查规划：确认 `/nav/cmd_vel` 有输出，并在障碍靠近时会变化。
 5. 检查安全：模拟点云中断或点数异常，确认 `/nav/emergency` 会触发。
 

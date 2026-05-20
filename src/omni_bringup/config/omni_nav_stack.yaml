@@ -2,6 +2,7 @@ local_map_builder:
   ros__parameters:
     frame_id: map
     pointcloud_topic: /oakd/points_filtered
+    output_topic: /local_map/occupancy
     resolution: 0.05
     width: 240
     height: 240
@@ -9,6 +10,15 @@ local_map_builder:
     max_z: 1.2
     inflation_radius: 0.35
     publish_rate: 5.0
+
+occupancy_grid_fusion:
+  ros__parameters:
+    dynamic_map_topic: /local_map/sensor_occupancy
+    static_map_topic: /static_map/occupancy
+    output_map_topic: /local_map/occupancy
+    publish_rate: 5.0
+    dynamic_timeout_sec: 1.0
+    occupied_threshold: 50
 
 se2_dwa_local_planner:
   ros__parameters:

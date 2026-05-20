@@ -49,6 +49,12 @@
 ./scripts/run_omni_nav.sh --planner dwb
 ```
 
+发布离线低分辨率 OccupancyGrid 地图：
+
+```bash
+./scripts/run_omni_nav.sh --offline-map /path/to/map.yaml
+```
+
 脚本后面可以继续追加底层 launch 参数：
 
 ```bash
@@ -68,6 +74,8 @@
 输出：
 
 ```text
+/local_map/sensor_occupancy  # 仅启用 --offline-map 时作为实时局部图中间话题
+/static_map/occupancy        # 仅启用 --offline-map 时发布
 /local_map/occupancy
 /nav/cmd_vel
 /nav/emergency
@@ -176,8 +184,21 @@ mcu_yaw_auto_zero: true
 ## 配置文件
 
 - `src/omni_bringup/config/omni_nav_stack.yaml`
+- `src/omni_bringup/config/offline_map.yaml`
 - `src/omni_bringup/config/ground_serial_bridge.yaml`
 - `src/ground_serial_bridge/config/ground_serial_bridge.yaml`
+
+`offline_map.yaml` 配置 `nav2_map_server` 和 lifecycle manager。启用后，
+离线地图发布到 `/static_map/occupancy`；实时点云局部图发布到
+`/local_map/sensor_occupancy`；`occupancy_grid_fusion` 会把离线地图中的占用格
+叠加到实时局部图，并输出 `/local_map/occupancy` 给 SE(2) DWA 或 DWB。
+这样静态墙体、禁行区和通道边界可以参与局部规划，动态障碍仍由实时点云更新。
+
+离线地图必须满足：
+
+- `frame_id` 与实时局部图一致，默认都是 `map`；
+- 地图 YAML 使用 Nav2 map server 格式；
+- 静态地图和 TF 对齐后再上车，否则静态障碍会被叠加到错误位置。
 
 `omni_nav_stack.yaml` 中的速度、加速度、避障半径已经按地面全向轮做了初始收敛。上车前仍需按底盘能力重新标定：
 

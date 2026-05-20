@@ -19,6 +19,8 @@
   <exec_depend>ground_serial_bridge</exec_depend>
   <exec_depend>oakd_perception</exec_depend>
   <exec_depend>livox_ros_driver2</exec_depend>
+  <exec_depend>nav2_map_server</exec_depend>
+  <exec_depend>nav2_lifecycle_manager</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

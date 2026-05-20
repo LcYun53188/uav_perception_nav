@@ -327,6 +327,12 @@ source install/setup.bash
 ./scripts/run_nav_stack.sh --odom-source lio --pointcloud-source mid360    # 纯 MID360/LIO
 ```
 
+地面全向轮入口可额外接入 Nav2 格式离线低分辨率地图。启用后，离线静态占用格会和实时点云局部图融合，融合结果仍发布到 `/local_map/occupancy` 供局部规划使用：
+
+```bash
+./scripts/run_omni_nav.sh --offline-map /path/to/map.yaml
+```
+
 脚本后面可以继续追加 launch 参数，例如：
 
 ```bash

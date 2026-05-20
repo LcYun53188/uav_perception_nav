@@ -6,6 +6,8 @@ WS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 POINTCLOUD_SOURCE="oakd"
 ENABLE_BRIDGE="false"
 PLANNER="se2_dwa"
+ENABLE_OFFLINE_MAP="false"
+OFFLINE_MAP_YAML=""
 DRY_RUN="false"
 EXTRA_ARGS=()
 
@@ -24,6 +26,13 @@ Options:
   --planner <se2_dwa|dwb>
       Local planner to launch. Default: se2_dwa.
 
+  --offline-map <map.yaml>
+      Publish a nav2 offline occupancy map on /static_map/occupancy.
+      The current local planner still consumes /local_map/occupancy.
+
+  --no-offline-map
+      Disable offline map publishing. Default: disabled.
+
   --dry-run
       Print the resolved ros2 launch command without executing it.
 
@@ -33,6 +42,7 @@ Examples:
   scripts/run_omni_nav.sh --pointcloud-source mid360
   scripts/run_omni_nav.sh --pointcloud-source both --bridge
   scripts/run_omni_nav.sh --planner dwb --pointcloud-source oakd
+  scripts/run_omni_nav.sh --offline-map /path/to/map.yaml
 EOF
 }
 
@@ -97,6 +107,22 @@ while [[ $# -gt 0 ]]; do
       PLANNER="${1#*=}"
       shift
       ;;
+    --offline-map)
+      require_value "$1" "${2:-}"
+      ENABLE_OFFLINE_MAP="true"
+      OFFLINE_MAP_YAML="$2"
+      shift 2
+      ;;
+    --offline-map=*)
+      ENABLE_OFFLINE_MAP="true"
+      OFFLINE_MAP_YAML="${1#*=}"
+      shift
+      ;;
+    --no-offline-map)
+      ENABLE_OFFLINE_MAP="false"
+      OFFLINE_MAP_YAML=""
+      shift
+      ;;
     --dry-run)
       DRY_RUN="true"
       shift
@@ -156,7 +182,12 @@ LAUNCH_ARGS=(
   enable_ground_serial_bridge:="$ENABLE_BRIDGE"
   launch_se2_dwa:="$LAUNCH_SE2_DWA"
   launch_dwb:="$LAUNCH_DWB"
+  enable_offline_map:="$ENABLE_OFFLINE_MAP"
 )
+
+if [[ "$ENABLE_OFFLINE_MAP" == "true" ]]; then
+  LAUNCH_ARGS+=(offline_map_yaml:="$OFFLINE_MAP_YAML")
+fi
 
 CMD=(
   "$WS_DIR/scripts/with_venv.sh"
@@ -173,6 +204,10 @@ echo "  pointcloud source: $POINTCLOUD_SOURCE"
 echo "  OAK-D perception : $ENABLE_OAKD_PERCEPTION"
 echo "  MID360           : $ENABLE_MID360"
 echo "  planner          : $PLANNER"
+echo "  offline map     : $ENABLE_OFFLINE_MAP"
+if [[ "$ENABLE_OFFLINE_MAP" == "true" ]]; then
+  echo "  offline map yaml: $OFFLINE_MAP_YAML"
+fi
 echo "  serial bridge    : $ENABLE_BRIDGE"
 
 if [[ "$DRY_RUN" == "true" ]]; then

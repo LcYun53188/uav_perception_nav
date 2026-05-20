@@ -27,6 +27,11 @@ LAUNCH_DEFAULTS = {
     "enable_mid360": "false",
     "launch_se2_dwa": "true",
     "launch_dwb": "false",
+    "enable_offline_map": "false",
+    "offline_map_yaml": "",
+    "offline_map_topic": "/static_map/occupancy",
+    "sensor_map_topic": "/local_map/sensor_occupancy",
+    "fused_map_topic": "/local_map/occupancy",
     "enable_ground_serial_bridge": "false",
     "obstacle_pointcloud_source": "oakd",
     "oakd_pointcloud_topic": "/oakd/points_filtered",
@@ -117,8 +122,82 @@ def launch_setup(context, *args, **kwargs):
     enable_ground_serial_bridge = _as_bool(
         LaunchConfiguration("enable_ground_serial_bridge").perform(context)
     )
+    enable_offline_map = _as_bool(
+        LaunchConfiguration("enable_offline_map").perform(context)
+    )
+    offline_map_yaml = LaunchConfiguration("offline_map_yaml").perform(context)
+    should_launch_map_fusion = enable_offline_map and bool(offline_map_yaml) and os.path.exists(
+        offline_map_yaml
+    )
+    local_map_output_topic = (
+        LaunchConfiguration("sensor_map_topic")
+        if should_launch_map_fusion
+        else LaunchConfiguration("fused_map_topic")
+    )
 
     nodes = []
+    if enable_offline_map:
+        if not offline_map_yaml:
+            nodes.append(
+                LogInfo(
+                    msg=(
+                        "offline map enabled, but offline_map_yaml is empty; "
+                        "skipping map_server"
+                    )
+                )
+            )
+        elif not os.path.exists(offline_map_yaml):
+            nodes.append(
+                LogInfo(
+                    msg=(
+                        f'offline map enabled, but "{offline_map_yaml}" was not '
+                        "found; skipping map_server"
+                    )
+                )
+            )
+        else:
+            nodes.extend(
+                [
+                    Node(
+                        package="nav2_map_server",
+                        executable="map_server",
+                        name="offline_map_server",
+                        output="screen",
+                        parameters=[
+                            PathJoinSubstitution(
+                                [
+                                    FindPackageShare("omni_bringup"),
+                                    "config",
+                                    "offline_map.yaml",
+                                ]
+                            ),
+                            {"yaml_filename": offline_map_yaml},
+                        ],
+                        remappings=[
+                            ("map", LaunchConfiguration("offline_map_topic")),
+                        ],
+                    ),
+                    Node(
+                        package="nav2_lifecycle_manager",
+                        executable="lifecycle_manager",
+                        name="offline_map_lifecycle_manager",
+                        output="screen",
+                        parameters=[
+                            {
+                                "autostart": True,
+                                "node_names": ["offline_map_server"],
+                            }
+                        ],
+                    ),
+                    LogInfo(
+                        msg=(
+                            "offline map is published and fused into "
+                            "/local_map/occupancy for local planning"
+                        )
+                    ),
+                ]
+            )
+
     nodes.extend(
         _optional_launch(
             context,
@@ -177,7 +256,28 @@ def launch_setup(context, *args, **kwargs):
                 executable="local_map_builder",
                 name="local_map_builder",
                 output="screen",
-                parameters=[config_file, {"pointcloud_topic": selected_topic}],
+                parameters=[
+                    config_file,
+                    {
+                        "pointcloud_topic": selected_topic,
+                        "output_topic": local_map_output_topic,
+                    },
+                ],
+            ),
+            Node(
+                package="nav_mapping",
+                executable="occupancy_grid_fusion",
+                name="occupancy_grid_fusion",
+                output="screen",
+                condition=IfCondition(str(should_launch_map_fusion).lower()),
+                parameters=[
+                    config_file,
+                    {
+                        "dynamic_map_topic": LaunchConfiguration("sensor_map_topic"),
+                        "static_map_topic": LaunchConfiguration("offline_map_topic"),
+                        "output_map_topic": LaunchConfiguration("fused_map_topic"),
+                    },
+                ],
             ),
             Node(
                 package="nav_planning",
@@ -269,6 +369,26 @@ def generate_launch_description():
             _launch_arg("enable_mid360", "Start MID360 driver and conversion nodes."),
             _launch_arg("launch_se2_dwa", "Start the SE(2) DWA local planner."),
             _launch_arg("launch_dwb", "Start the optional DWB bridge planner."),
+            _launch_arg(
+                "enable_offline_map",
+                "Publish an offline occupancy map with nav2_map_server.",
+            ),
+            _launch_arg(
+                "offline_map_yaml",
+                "Absolute path to a nav2 map YAML file.",
+            ),
+            _launch_arg(
+                "offline_map_topic",
+                "Topic used by the offline occupancy map.",
+            ),
+            _launch_arg(
+                "sensor_map_topic",
+                "Intermediate real-time occupancy map before static map fusion.",
+            ),
+            _launch_arg(
+                "fused_map_topic",
+                "Occupancy map consumed by local planners.",
+            ),
             _launch_arg(
                 "enable_ground_serial_bridge",
                 "Start the ground serial bridge if the package is available.",
