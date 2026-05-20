@@ -15,6 +15,7 @@
 | [OAKD_PRO_W_VINS_CALIBRATION.md](./OAKD_PRO_W_VINS_CALIBRATION.md) | OAK-D Pro W 与 VINS-Fusion 标定、静止漂移排查 | VIO 集成者、调试人员 | 15 min |
 | [DEBUG_VALIDATION_FLOW.md](./DEBUG_VALIDATION_FLOW.md) | 从环境、传感器、里程计、EKF、地图到 PX4 的逐层验证流程 | 调试人员、集成者 | 15 min |
 | [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md) | OAK-D / MID360 单设备启动、话题检查、RViz 与 bag 调试 | 调试人员、集成者 | 10 min |
+| [OMNI_BRINGUP.md](./OMNI_BRINGUP.md) | 地面全向轮独立启动包、参数与话题说明 | 集成者、调试人员 | 10 min |
 | [SUBMODULE_PATCH_REPRODUCTION.md](./SUBMODULE_PATCH_REPRODUCTION.md) | 第三方 submodule + patch 复刻与维护流程 | 开发者、集成者 | 10 min |
 | [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) | 常用命令、参数、问题排查 | 所有用户 | 10 min |
 | [../README.md](../README.md) | 项目主文档、快速开始 | 所有用户 | 10 min |
@@ -39,6 +40,7 @@
 - 想逐层验证调试链路？ → [DEBUG_VALIDATION_FLOW.md](./DEBUG_VALIDATION_FLOW.md)
 - OAK-D Pro W 接入 VINS 静止漂移？ → [OAKD_PRO_W_VINS_CALIBRATION.md](./OAKD_PRO_W_VINS_CALIBRATION.md)
 - 只调试 OAK-D 或 MID360？ → [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md)
+- 调试地面全向轮启动？ → [OMNI_BRINGUP.md](./OMNI_BRINGUP.md)
 - 需要复刻 MID360/FAST-LIO2 第三方源码？ → [SUBMODULE_PATCH_REPRODUCTION.md](./SUBMODULE_PATCH_REPRODUCTION.md)
 - 想确认启动入口？ → [../README.md](../README.md#4-运行与启动) 或 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#启动命令)
 - 遇到问题？ → [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常见问题与解决) 或 [../README.md](../README.md#10-故障排查)
@@ -61,6 +63,7 @@ docs/
 ├── PX4_NAVIGATION_STRATEGY.md    # PX4 导航与避障路线对比
 ├── DEBUG_VALIDATION_FLOW.md      # 调试链路与逐层验证流程
 ├── SENSOR_DEBUG_GUIDE.md         # OAK-D / MID360 独立调试
+├── OMNI_BRINGUP.md               # 地面全向轮独立启动包说明
 ├── SUBMODULE_PATCH_REPRODUCTION.md # 第三方源码复刻与 patch 流程
 ├── QUICK_REFERENCE.md            # 快速命令参考
 └── archive/                      # 历史文档

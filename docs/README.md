@@ -13,6 +13,7 @@
 - **需要规划 PX4 导航与避障？** 阅读 [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md)。
 - **需要逐层验证可行性？** 阅读 [DEBUG_VALIDATION_FLOW.md](./DEBUG_VALIDATION_FLOW.md)。
 - **只调试 OAK-D 或 MID360？** 阅读 [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md)。
+- **需要启动地面全向轮平台？** 阅读 [OMNI_BRINGUP.md](./OMNI_BRINGUP.md)。
 - **需要复刻第三方源码依赖？** 阅读 [SUBMODULE_PATCH_REPRODUCTION.md](./SUBMODULE_PATCH_REPRODUCTION.md)。
 - **想直接运行系统？** 使用 [../scripts/run_nav_stack.sh](../scripts/run_nav_stack.sh)，单设备调试按 [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md)。
 
@@ -28,6 +29,7 @@
 | **PX4_NAVIGATION_STRATEGY.md** | PX4 导航与避障路线、nav 与 3D 方案对比 |
 | **DEBUG_VALIDATION_FLOW.md** | 从环境、传感器、里程计、EKF、地图到 PX4 的逐层验证流程 |
 | **SENSOR_DEBUG_GUIDE.md** | OAK-D / MID360 独立启动、话题检查、RViz 与 bag 调试 |
+| **OMNI_BRINGUP.md** | 地面全向轮独立启动包、启动参数与话题说明 |
 | **SUBMODULE_PATCH_REPRODUCTION.md** | 第三方 submodule + patch 复刻与维护流程 |
 | **QUICK_REFERENCE.md** | 常用命令、参数示例、故障排查速查表 |
 | **archive/** | 历史与参考文档（可选阅读） |
@@ -95,6 +97,7 @@ mv UNIFIED_NODE_ARCHITECTURE.md docs/archive/
 - [PX4 导航策略](./PX4_NAVIGATION_STRATEGY.md)
 - [调试链路与逐层验证流程](./DEBUG_VALIDATION_FLOW.md)
 - [OAK-D / MID360 独立调试指南](./SENSOR_DEBUG_GUIDE.md)
+- [地面全向轮启动包说明](./OMNI_BRINGUP.md)
 - [Submodule + Patch 复刻流程](./SUBMODULE_PATCH_REPRODUCTION.md)
 - [完整系统启动脚本](../scripts/run_complete_system.sh)
 - [导航栈模式化启动脚本](../scripts/run_nav_stack.sh)
