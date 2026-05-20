@@ -221,6 +221,88 @@ mcu_yaw_auto_zero: true
 - 地图 YAML 使用 Nav2 map server 格式；
 - 静态地图和 TF 对齐后再上车，否则静态障碍会被叠加到错误位置。
 
+## 创建离线低图
+
+离线低图使用 Nav2 `map_server` 的 2D OccupancyGrid 地图格式：一个
+`map.yaml` 配一个图片文件，例如 `map.pgm` 或 `map.png`。低图只表达墙体、
+通道边界和禁行区等稳定结构；动态障碍仍由 OAK-D / MID360 实时点云负责。
+
+推荐目录：
+
+```bash
+mkdir -p maps/site_a
+```
+
+示例 `maps/site_a/map.yaml`：
+
+```yaml
+image: map.pgm
+mode: trinary
+resolution: 0.10
+origin: [-5.0, -5.0, 0.0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.25
+```
+
+参数含义：
+
+- `image`：地图图片路径，通常写相对 `map.yaml` 的路径；
+- `resolution`：每个像素代表的米数，低图建议 `0.10` 到 `0.20`；
+- `origin: [x, y, yaw]`：图片左下角在 `map` 坐标系中的位姿；
+- `occupied_thresh` / `free_thresh`：像素转占用/空闲的阈值。
+
+图片约定：
+
+- 黑色或深色：占用，表示墙体、固定障碍或禁行区；
+- 白色或浅色：空闲；
+- 灰色：未知区域。
+
+启用方式一：临时参数启动：
+
+```bash
+./scripts/run_omni_nav.sh --offline-map /home/nuc/Program/uav_vision_ws/maps/site_a/map.yaml
+```
+
+启用方式二：写入 `scripts/nav_launch.env`：
+
+```bash
+OMNI_ENABLE_OFFLINE_MAP="true"
+OMNI_OFFLINE_MAP_YAML="/home/nuc/Program/uav_vision_ws/maps/site_a/map.yaml"
+```
+
+之后直接启动：
+
+```bash
+./scripts/run_omni_nav.sh
+```
+
+验证：
+
+```bash
+./scripts/check_offline_map.sh
+./scripts/check_omni_nav.sh --offline-map
+./scripts/run_rviz_nav.sh
+```
+
+RViz 中建议同时看：
+
+```text
+TF
+/static_map/occupancy
+/local_map/sensor_occupancy
+/local_map/occupancy
+/nav/cmd_vel
+```
+
+验收标准：
+
+- `/static_map/occupancy`、`/local_map/sensor_occupancy`、`/local_map/occupancy`
+  的 `frame_id` 都是 `map`；
+- 静态地图中的墙体和现场真实墙体在 RViz 中重合；
+- 车体 `base_link` 在地图中的位置和朝向正确；
+- 融合后的 `/local_map/occupancy` 同时包含静态障碍和实时点云障碍。
+
 调试记录建议使用：
 
 ```bash

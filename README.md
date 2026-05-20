@@ -338,6 +338,9 @@ source install/setup.bash
 ./scripts/run_omni_nav.sh --offline-map /path/to/map.yaml
 ```
 
+离线低图的 `map.yaml` / `map.pgm` 创建和验收步骤见
+[docs/OMNI_BRINGUP.md](./docs/OMNI_BRINGUP.md#创建离线低图)。
+
 脚本后面可以继续追加 launch 参数，例如：
 
 ```bash
