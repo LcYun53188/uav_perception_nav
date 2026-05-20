@@ -11,6 +11,7 @@
 | [INSTALLATION.md](./INSTALLATION.md) | 虚拟环境、依赖、构建 | 开发者、新用户 | 15 min |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 系统架构、数据流、节点设计 | 架构师、集成者 | 20 min |
 | [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md) | PX4 导航与避障路线，对比 nav 与 3D 方案 | 导航集成者、算法开发者 | 15 min |
+| [TF_FRAMES.md](./TF_FRAMES.md) | 坐标系、TF 树、OAK-D/MID360 安装外参与内部标定修改位置 | 集成者、调试人员 | 10 min |
 | [OAKD_PRO_W_VINS_CALIBRATION.md](./OAKD_PRO_W_VINS_CALIBRATION.md) | OAK-D Pro W 与 VINS-Fusion 标定、静止漂移排查 | VIO 集成者、调试人员 | 15 min |
 | [DEBUG_VALIDATION_FLOW.md](./DEBUG_VALIDATION_FLOW.md) | 从环境、传感器、里程计、EKF、地图到 PX4 的逐层验证流程 | 调试人员、集成者 | 15 min |
 | [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md) | OAK-D / MID360 单设备启动、话题检查、RViz 与 bag 调试 | 调试人员、集成者 | 10 min |
@@ -34,6 +35,7 @@
 - 需要了解架构设计？ → [ARCHITECTURE.md](./ARCHITECTURE.md)
 - 需要规划 PX4 导航路线？ → [PX4_NAVIGATION_STRATEGY.md](./PX4_NAVIGATION_STRATEGY.md)
 - 想调整参数与配置？ → [../README.md](../README.md#5-配置与参数) 或 [QUICK_REFERENCE.md](./QUICK_REFERENCE.md#常用启动参数)
+- 想修改 OAK-D / MID360 安装位置、姿态或内部外参？ → [TF_FRAMES.md](./TF_FRAMES.md#53-静态外参配置)
 - 想逐层验证调试链路？ → [DEBUG_VALIDATION_FLOW.md](./DEBUG_VALIDATION_FLOW.md)
 - OAK-D Pro W 接入 VINS 静止漂移？ → [OAKD_PRO_W_VINS_CALIBRATION.md](./OAKD_PRO_W_VINS_CALIBRATION.md)
 - 只调试 OAK-D 或 MID360？ → [SENSOR_DEBUG_GUIDE.md](./SENSOR_DEBUG_GUIDE.md)

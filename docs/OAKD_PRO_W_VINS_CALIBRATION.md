@@ -200,6 +200,16 @@ cy = K[1][2]
 
 `body_T_cam0/body_T_cam1` 必须表示 VINS body 坐标系到相机坐标系的刚体变换。当前工程中 body 语义为 `oakd_imu_link`。
 
+外参修改位置要区分清楚：
+
+| 内容 | 修改位置 | 含义 |
+|------|----------|------|
+| `base_link -> oakd_imu_link` | `src/uav_bringup/launch/ekf_launch.py` | 整台 OAK-D 相对无人机机体的安装位置和姿态 |
+| `oakd_imu_link -> oakd_camera_optical_frame` | `src/oakd_perception/launch/oakd_unified.launch.py` | OAK-D 内部 IMU/机身坐标系到相机光学坐标系 |
+| `body_T_cam0/body_T_cam1` | `src/VINS-Fusion-ros2/config/oakd/oakd_stereo_imu_config.yaml` | VINS 内部使用的 IMU 到左右相机外参 |
+
+如果只是移动 OAK-D 在飞机上的安装位置，只修改 `base_link -> oakd_imu_link`；不要修改 `body_T_cam0/body_T_cam1`。只有当 OAK-D 内部 IMU-相机标定更新，或确认当前光学帧方向/左右目 baseline 错误时，才修改本节矩阵。
+
 写入前必须确认 EEPROM 的 `getImuToCameraExtrinsics()` 返回方向。如果返回的是 `IMU -> Camera`，通常可直接作为 `body_T_cam` 初值；如果返回的是 `Camera -> IMU`，需要取逆。
 
 矩阵格式：
@@ -306,4 +316,3 @@ scripts/with_venv.sh ros2 topic echo /vio/odometry --field twist.twist.linear
 - 未实测 `base_link -> oakd_imu_link` 安装外参
 
 因此，当前 `/vio/odometry` 只能用于链路调试，不能作为飞控闭环定位源。
-

@@ -57,6 +57,7 @@ map ──(EKF_map 动态)──> odom ──(EKF_odom 动态)──> base_link 
 | `base_link` → `oakd_imu_link` | 静态 | `static_transform_publisher` | 相机安装外参（物理偏移量） |
 | `oakd_imu_link` → `oakd_camera_optical_frame` | 静态 | `static_transform_publisher` | 相机内部 IMU 到镜头的标定 |
 | `base_link` → `gps_link` | 静态 | `static_transform_publisher` | GPS 天线偏移 |
+| `base_link` → `mid360_link` | 静态 | `static_transform_publisher` | MID360 安装外参（启用 MID360 或 LIO 时发布） |
 
 ---
 
@@ -118,11 +119,26 @@ ros2 launch uav_bringup ekf_launch.py enable_gps:=false
 |------|------|
 | `uav_bringup/config/dual_ekf.yaml` | EKF_odom + EKF_map + NavSat 参数 |
 | `uav_bringup/launch/ekf_launch.py` | EKF 节点 + 静态变换 launch 文件 |
-| `uav_bringup/launch/nav_stack.launch.py` | 完整导航栈入口 |
+| `uav_bringup/launch/nav_stack.launch.py` | 完整导航栈入口，包含 MID360 安装外参 launch 参数默认值 |
+| `oakd_perception/launch/oakd_unified.launch.py` | OAK-D 统一节点 + `oakd_imu_link -> oakd_camera_optical_frame` 静态 TF |
+| `VINS-Fusion-ros2/config/oakd/oakd_stereo_imu_config.yaml` | VINS 使用的 OAK-D IMU 到左右相机外参 |
+| `FAST_LIO_ROS2/config/mid360.yaml` | FAST-LIO 使用的 MID360 LiDAR 到 IMU 外参 |
 
 ### 5.3 静态外参配置
 
-**相机安装外参**（`base_link → oakd_imu_link`）：
+本项目把“传感器装在飞机上的位置”和“传感器内部标定”分开配置。修改前先确认你要改的是哪一类：
+
+| 目标 | TF / 参数 | 修改位置 |
+|------|-----------|----------|
+| 整台 OAK-D 相对机体的位置姿态 | `base_link -> oakd_imu_link` | `src/uav_bringup/launch/ekf_launch.py` |
+| OAK-D 内部 IMU/机身帧到光学帧 | `oakd_imu_link -> oakd_camera_optical_frame` | `src/oakd_perception/launch/oakd_unified.launch.py` |
+| VINS 内部 OAK-D IMU 到左右相机 | `body_T_cam0/body_T_cam1` | `src/VINS-Fusion-ros2/config/oakd/oakd_stereo_imu_config.yaml` |
+| 整台 MID360 相对机体的位置姿态 | `base_link -> mid360_link` | `src/uav_bringup/launch/nav_stack.launch.py` 或启动参数 |
+| FAST-LIO 内部 LiDAR 到 IMU | `extrinsic_T/extrinsic_R` | `src/FAST_LIO_ROS2/config/mid360.yaml` |
+
+#### 5.3.1 OAK-D 机体安装外参
+
+**OAK-D 安装外参**（`base_link → oakd_imu_link`）：
 
 在 `ekf_launch.py` 中修改以下参数，单位为米和弧度：
 ```python
@@ -131,10 +147,92 @@ ros2 launch uav_bringup ekf_launch.py enable_gps:=false
 arguments=['0', '0', '0', '0', '0', '0', 'base_link', 'oakd_imu_link'],
 ```
 
+这 6 个值表示 OAK-D 内置 IMU 原点相对 `base_link` 的安装位置和姿态：
+
+- `x/y/z`：单位为米；`+X` 向前、`+Y` 向左、`+Z` 向上。
+- `yaw/pitch/roll`：单位为弧度；顺序必须保持 `yaw pitch roll`。
+- 当前全 0 表示 OAK-D 与 `base_link` 重合且姿态一致。
+
+示例：OAK-D 在机体中心前方 10 cm、右侧 4 cm、上方 6 cm：
+
+```python
+arguments=['0.10', '-0.04', '0.06', '0', '0', '0', 'base_link', 'oakd_imu_link'],
+```
+
 > **重要**：同时需要在 PX4 QGC 参数中设置对应的 Lever Arm 补偿（NED 坐标系）：
 > - `EKF2_EV_POS_X` = dx（与 ROS X 相同）
 > - `EKF2_EV_POS_Y` = −dy（ROS Y 取反）
 > - `EKF2_EV_POS_Z` = −dz（ROS Z 取反）
+
+#### 5.3.2 OAK-D 内部 IMU 到光学帧
+
+`oakd_perception/launch/oakd_unified.launch.py` 发布：
+
+```text
+oakd_imu_link -> oakd_camera_optical_frame
+```
+
+这不是整台 OAK-D 在机体上的安装位置，而是 OAK-D 内部 IMU/机身坐标系到相机光学坐标系的固定变换。当前参数：
+
+```python
+arguments=[
+    '0', '0', '0',
+    '1.57', '0', '3.14',
+    'oakd_imu_link',
+    'oakd_camera_optical_frame',
+]
+```
+
+只有在更新 OAK-D 内部 IMU 到相机光学帧标定、或发现点云坐标轴翻转/方向错误时才修改这里。如果只是移动 OAK-D 的安装位置，应修改 `base_link -> oakd_imu_link`。
+
+#### 5.3.3 VINS 的 OAK-D IMU 到相机外参
+
+`VINS-Fusion-ros2/config/oakd/oakd_stereo_imu_config.yaml` 中：
+
+```yaml
+estimate_extrinsic: 0
+body_T_cam0: ...
+body_T_cam1: ...
+```
+
+这里的 `body_T_cam0/body_T_cam1` 是 VINS 内部使用的 `oakd_imu_link` 到左/右相机的刚体变换，不是 OAK-D 相对无人机机体的安装外参。它应与 `oakd_imu_link -> oakd_camera_optical_frame` 的方向语义保持一致。
+
+#### 5.3.4 MID360 机体安装外参
+
+`nav_stack.launch.py` 提供 MID360 安装参数：
+
+```text
+mid360_x mid360_y mid360_z mid360_yaw mid360_pitch mid360_roll
+```
+
+这组参数发布：
+
+```text
+base_link -> mid360_link
+```
+
+示例：MID360 位于机体中心前方 8 cm、上方 5 cm：
+
+```bash
+./scripts/run_nav_stack.sh mid360 mid360_x:=0.08 mid360_y:=0.0 mid360_z:=0.05
+```
+
+如果要把默认值固化到工程入口，修改 `src/uav_bringup/launch/nav_stack.launch.py` 的 `LAUNCH_DEFAULTS`。如果只针对一次实验，优先在启动命令里传参。
+
+#### 5.3.5 FAST-LIO 的 MID360 LiDAR-IMU 外参
+
+`FAST_LIO_ROS2/config/mid360.yaml` 中：
+
+```yaml
+mapping:
+  extrinsic_est_en: true
+  extrinsic_T: [ -0.011, -0.02329, 0.04412 ]
+  extrinsic_R: [ 1., 0., 0.,
+                 0., 1., 0.,
+                 0., 0., 1.]
+```
+
+这是 FAST-LIO 内部的 LiDAR 到 IMU 外参，不是 `base_link -> mid360_link`。调试新设备时可以先保持 `extrinsic_est_en: true`，待 LIO 稳定后再用实测或标定结果固定 `extrinsic_T/R`。
 
 ---
 

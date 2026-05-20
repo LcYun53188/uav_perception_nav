@@ -63,7 +63,37 @@ LAUNCH_DEFAULTS = {
     'lio_odom_topic': '/lio/odometry',
     'lio_path_topic': '/lio/path',
 
-    # Sensor extrinsics: base_link -> mid360_link, order x y z yaw pitch roll
+    # MID360 mounting extrinsics on the UAV body.
+    #
+    # These launch arguments describe the rigid transform published as:
+    #
+    #   base_link -> mid360_link
+    #
+    # Meaning:
+    #   - base_link is the UAV body frame / vehicle reference frame.
+    #   - mid360_link is the MID360 point cloud frame used by /mid360/points.
+    #   - x/y/z are the MID360 origin offset measured from base_link, in meters.
+    #   - yaw/pitch/roll are the MID360 orientation relative to base_link, in radians.
+    #
+    # Coordinate convention follows ROS body ENU:
+    #   - +X: forward
+    #   - +Y: left
+    #   - +Z: up
+    #
+    # Rotation convention follows tf2 static_transform_publisher argument order:
+    #   x y z yaw pitch roll parent_frame child_frame
+    #
+    # Examples:
+    #   - MID360 at the body center, same attitude:
+    #       mid360_x:=0.0 mid360_y:=0.0 mid360_z:=0.0
+    #       mid360_yaw:=0.0 mid360_pitch:=0.0 mid360_roll:=0.0
+    #   - MID360 8 cm forward and 5 cm above the body origin:
+    #       mid360_x:=0.08 mid360_y:=0.0 mid360_z:=0.05
+    #
+    # Do not confuse these values with FAST-LIO's extrinsic_T/extrinsic_R in
+    # src/FAST_LIO_ROS2/config/mid360.yaml. That file configures the LiDAR-to-IMU
+    # transform used internally by FAST-LIO. The values below configure the
+    # whole MID360 sensor pose relative to the aircraft body.
     'mid360_x': '0.0',
     'mid360_y': '0.0',
     'mid360_z': '0.0',

@@ -19,12 +19,39 @@ use_gpu         : 0
 use_gpu_acc_flow: 0
 use_gpu_ceres   : 0
 
-# Extrinsic parameter between camera built-in IMU and the Camera lenses.
-# Note: This is the internal camera-IMU calibration (cam-to-body), NOT the lever arm offset between the Flight Controller (base_link) and the camera.
-# The Lever Arm offset to the flight controller must be configured in PX4 parameters (EKF2_EV_POS_*) and ROS static TF.
-estimate_extrinsic: 0   # Use the configured OAK-D IMU->camera extrinsics; do not estimate while stationary.
+# OAK-D internal IMU-camera extrinsics for VINS-Fusion.
+#
+# This block configures the transform between the VINS body frame and the
+# OAK-D camera frames. In this project the VINS body frame is oakd_imu_link.
+#
+# Important distinction:
+#   - base_link -> oakd_imu_link:
+#       Whole OAK-D mounting pose on the aircraft body. Configure this in
+#       uav_bringup/launch/ekf_launch.py.
+#   - oakd_imu_link -> oakd_camera_optical_frame:
+#       ROS TF for the OAK-D internal IMU/body frame to optical camera frame.
+#       Configure this in oakd_perception/launch/oakd_unified.launch.py.
+#   - body_T_cam0/body_T_cam1 below:
+#       VINS-Fusion internal body-to-left/right-camera extrinsics.
+#
+# Do not use body_T_cam0/body_T_cam1 as the aircraft mounting lever arm.
+# If the OAK-D is physically moved on the UAV, update base_link -> oakd_imu_link.
+# If the OAK-D internal IMU-camera calibration changes, update this block and
+# keep oakd_unified.launch.py's oakd_imu_link -> oakd_camera_optical_frame TF
+# consistent with it.
+#
+# estimate_extrinsic:
+#   - 0: Use the fixed matrices below. This is preferred when the OAK-D
+#     IMU-camera extrinsic is known and when testing the vehicle while still.
+#   - 1/2: Let VINS estimate/refine extrinsics according to VINS-Fusion's
+#     modes. Avoid this during stationary bring-up unless you deliberately want
+#     online calibration behavior.
+estimate_extrinsic: 0
 
 body_T_cam0: !!opencv-matrix
+   # Transform from VINS body frame (oakd_imu_link) to left camera frame.
+   # rows/cols/dt follow OpenCV matrix YAML format.
+   # The top-left 3x3 block is rotation; the last column is translation in meters.
    rows: 4
    cols: 4
    dt: d
@@ -34,6 +61,9 @@ body_T_cam0: !!opencv-matrix
            0., 0., 0., 1. ]
 
 body_T_cam1: !!opencv-matrix
+   # Transform from VINS body frame (oakd_imu_link) to right camera frame.
+   # The translation should be consistent with the stereo baseline; this current
+   # config uses about 0.075 m between the left and right camera frames.
    rows: 4
    cols: 4
    dt: d

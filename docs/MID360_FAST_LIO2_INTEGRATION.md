@@ -309,11 +309,19 @@ mid360_x mid360_y mid360_z mid360_yaw mid360_pitch mid360_roll
 ROS ENU: X 前，Y 左，Z 上
 ```
 
+这组参数表示整台 MID360 相对无人机 `base_link` 的安装外参：
+
+- `mid360_x/y/z`：MID360 原点相对机体坐标系的平移，单位为米。
+- `mid360_yaw/pitch/roll`：MID360 坐标系相对机体坐标系的姿态，单位为弧度。
+- 如果只是临时实验，建议在启动命令中传参；如果要固化默认值，修改 `src/uav_bringup/launch/nav_stack.launch.py` 中的 `LAUNCH_DEFAULTS`。
+
 示例：MID360 位于机体中心前方 8 cm、上方 5 cm：
 
 ```bash
 mid360_x:=0.08 mid360_y:=0.0 mid360_z:=0.05
 ```
+
+不要把 `src/FAST_LIO_ROS2/config/mid360.yaml` 里的 `extrinsic_T/R` 直接填到这里。`mid360_x/y/z/yaw/pitch/roll` 是传感器相对飞机机体的安装外参；`extrinsic_T/R` 是 FAST-LIO 内部 LiDAR 到 IMU 的标定。
 
 外参不准会导致：
 
@@ -393,6 +401,8 @@ mapping:
 - 先保持 `extrinsic_est_en: true`，确认 LIO 能跑通。
 - 跑稳后用实测或标定外参替换 `extrinsic_T/R`，再评估是否关掉在线估计。
 - `blind` 不要太小，无人机桨叶/机体附近点云应过滤掉。
+
+这里的 `extrinsic_T/R` 只影响 FAST-LIO 的 LiDAR-IMU 预积分和配准，不发布 `base_link -> mid360_link`。如果点云相对机体位置不对，优先检查 `mid360_x/y/z/yaw/pitch/roll` 和 TF；如果 LIO 初始化、姿态或轨迹本身异常，再检查 `extrinsic_T/R`、时间同步和 IMU 数据。
 
 ## 常见问题
 

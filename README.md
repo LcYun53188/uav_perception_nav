@@ -458,6 +458,20 @@ source install/setup.bash
 | `combined_pointcloud_topic` | `/perception/obstacle_points` | `both` 模式下的融合点云 |
 | `lio_odom_topic` | `/lio/odometry` | FAST-LIO2 输出里程计 |
 
+### 5.5 传感器安装外参与内部标定
+
+本项目把“传感器装在飞机上的位置姿态”和“传感器内部 IMU/相机/雷达标定”分开配置：
+
+| 内容 | 修改位置 | 说明 |
+|------|----------|------|
+| OAK-D 机体安装外参 `base_link -> oakd_imu_link` | `src/uav_bringup/launch/ekf_launch.py` | 整台 OAK-D 相对机体的 x/y/z/yaw/pitch/roll |
+| OAK-D 内部光学帧 `oakd_imu_link -> oakd_camera_optical_frame` | `src/oakd_perception/launch/oakd_unified.launch.py` | OAK-D IMU/机身帧到相机光学帧 |
+| VINS OAK-D 外参 `body_T_cam0/body_T_cam1` | `src/VINS-Fusion-ros2/config/oakd/oakd_stereo_imu_config.yaml` | VINS 内部 IMU 到左右相机矩阵 |
+| MID360 机体安装外参 `base_link -> mid360_link` | `src/uav_bringup/launch/nav_stack.launch.py` 或启动参数 | 整台 MID360 相对机体的 x/y/z/yaw/pitch/roll |
+| FAST-LIO MID360 外参 `extrinsic_T/extrinsic_R` | `src/FAST_LIO_ROS2/config/mid360.yaml` | FAST-LIO 内部 LiDAR 到 IMU 标定 |
+
+统一坐标约定：ROS ENU，`+X` 前、`+Y` 左、`+Z` 上；平移单位为米，姿态角单位为弧度。详细修改方法、示例和容易混淆的外参区别见 [docs/TF_FRAMES.md](./docs/TF_FRAMES.md#53-静态外参配置)。
+
 MID360 驱动网络配置位于：
 
 ```text

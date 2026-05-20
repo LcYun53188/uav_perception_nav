@@ -71,11 +71,43 @@ def launch_setup(context, *args, **kwargs):
         parameters=node_params,
     )
 
-    # 静态变换：oakd_imu_link (重力中心) -> oakd_camera_optical_frame (镜头中心)
-    # 修正：
-    # 1. 绕 Z 轴翻转 180 度 (由上一步完成)
-    # 2. 再绕相机的 X 轴逆时针旋转 90 度 (+1.57 rad)
-    # 最终参数：yaw=1.57, pitch=0, roll=3.14
+    # 静态变换：oakd_imu_link -> oakd_camera_optical_frame
+    #
+    # 这组参数描述 OAK-D 设备内部 IMU/机身坐标系到相机光学坐标系的固定关系。
+    # 它不是 OAK-D 相对无人机机体的安装位置；整台 OAK-D 的机体安装外参在
+    # uav_bringup/launch/ekf_launch.py 中通过 base_link -> oakd_imu_link 配置。
+    #
+    # TF 链路整体应为：
+    #   base_link -> oakd_imu_link -> oakd_camera_optical_frame
+    #
+    # 坐标系含义：
+    #   - oakd_imu_link：OAK-D 内置 IMU / 相机机身参考坐标系。
+    #   - oakd_camera_optical_frame：相机光学坐标系，也是 /oakd/points 和
+    #     /oakd/points_filtered 默认使用的 frame_id。
+    #
+    # static_transform_publisher 参数顺序：
+    #   x y z yaw pitch roll parent_frame child_frame
+    #
+    # 当前平移为 0：
+    #   - 暂不区分 IMU 原点和相机光学中心之间的物理偏移。
+    #   - 如果后续从 OAK-D EEPROM 或标定结果获得 IMU->Camera 的真实平移，
+    #     应填入这里的 x/y/z，单位为米。
+    #
+    # 当前旋转：
+    #   - yaw = 1.57 rad
+    #   - pitch = 0
+    #   - roll = 3.14 rad
+    #
+    # 这组旋转用于把 OAK-D 机身/IMU 坐标轴转换到 ROS optical frame 约定：
+    #   - optical +X：图像右方
+    #   - optical +Y：图像下方
+    #   - optical +Z：相机前方
+    #
+    # 注意：
+    #   - VINS 的 body_T_cam0/body_T_cam1 应与这里的 IMU->Camera 语义保持一致。
+    #   - 如果这里旋转方向写反，点云会出现轴向翻转，VINS 的视觉约束也会异常。
+    #   - 如果只是移动 OAK-D 在飞机上的安装位置，不应改这里，应改
+    #     base_link -> oakd_imu_link。
     static_tf_node = Node(
         package="tf2_ros",
         executable="static_transform_publisher",

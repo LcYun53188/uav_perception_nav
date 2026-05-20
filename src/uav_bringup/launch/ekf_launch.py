@@ -130,8 +130,44 @@ def launch_setup(context, *args, **kwargs):
         ))
 
     # ── 静态外参：base_link → oakd_imu_link ──
-    # TODO: 替换为实际测量的相机安装偏移量 [x, y, z, yaw, pitch, roll]
-    # 坐标约定：ROS ENU (X-前, Y-左, Z-上)
+    #
+    # 这组参数描述 OAK-D 作为一个整体安装在无人机机体上的位置和姿态，
+    # 也就是“机体坐标系到 OAK-D IMU 坐标系”的静态 TF。
+    #
+    # TF 链路中的角色：
+    #   - base_link：无人机机体坐标系，通常取飞控/机体中心作为原点。
+    #   - oakd_imu_link：OAK-D 内置 IMU / 相机机身参考坐标系。
+    #   - oakd_camera_optical_frame：OAK-D 相机光学坐标系，由
+    #     oakd_perception/launch/oakd_unified.launch.py 继续从 oakd_imu_link 发布。
+    #
+    # 坐标约定：ROS ENU / body convention
+    #   - +X：机头前方
+    #   - +Y：机体左侧
+    #   - +Z：机体上方
+    #
+    # static_transform_publisher 参数顺序：
+    #   x y z yaw pitch roll parent_frame child_frame
+    #
+    # 参数单位：
+    #   - x/y/z：米，表示 OAK-D IMU 原点相对 base_link 的平移。
+    #   - yaw/pitch/roll：弧度，表示 OAK-D IMU 坐标系相对 base_link 的姿态。
+    #
+    # 当前默认值为全 0：
+    #   - 表示 OAK-D IMU 原点与 base_link 重合。
+    #   - 表示 OAK-D IMU 姿态与 base_link 完全一致。
+    #
+    # 实测安装后应替换这里的 6 个数。例如：
+    #   - OAK-D 装在机体中心前方 10 cm：x = 0.10
+    #   - OAK-D 装在机体中心右侧 4 cm：y = -0.04
+    #   - OAK-D 装在机体中心上方 6 cm：z = 0.06
+    #
+    # 注意：
+    #   - 这里配置的是“整台 OAK-D 相对飞机机体”的安装外参。
+    #   - 不要把 VINS 配置文件里的 body_T_cam0/body_T_cam1 直接填到这里；
+    #     body_T_cam* 描述的是 OAK-D 内部 IMU 到左右相机的外参。
+    #   - 不要把 oakd_imu_link -> oakd_camera_optical_frame 的旋转直接填到这里；
+    #     那是相机内部坐标轴到光学坐标轴的变换。
+    #   - 如果这里不准，点云、VIO 里程计和避障障碍物会相对机体整体偏移或旋转。
     nodes.append(Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -149,7 +185,37 @@ def launch_setup(context, *args, **kwargs):
     ))
 
     if enable_mid360 or enable_lio:
-        # 坐标约定：ROS ENU (X-前, Y-左, Z-上)，参数顺序为 x y z yaw pitch roll。
+        # ── 静态外参：base_link → mid360_link ──
+        #
+        # 这组参数描述 MID360 作为一个整体安装在无人机机体上的位置和姿态，
+        # 也就是“机体坐标系到 MID360 点云坐标系”的静态 TF。
+        #
+        # 坐标系含义：
+        #   - base_link：无人机机体坐标系，通常取飞控/机体中心作为原点。
+        #   - mid360_link：MID360 点云坐标系，/mid360/points 使用这个 frame_id。
+        #
+        # 坐标约定：ROS ENU / body convention
+        #   - +X：机头前方
+        #   - +Y：机体左侧
+        #   - +Z：机体上方
+        #
+        # 参数单位和顺序：
+        #   - mid360_x/y/z：单位为米，表示 MID360 原点相对 base_link 的平移。
+        #   - mid360_yaw/pitch/roll：单位为弧度，表示 MID360 相对 base_link 的姿态。
+        #   - static_transform_publisher 的参数顺序为：
+        #       x y z yaw pitch roll parent_frame child_frame
+        #
+        # 正负方向示例：
+        #   - MID360 装在机体中心前方 8 cm：mid360_x:=0.08
+        #   - MID360 装在机体中心右侧 3 cm：mid360_y:=-0.03
+        #   - MID360 装在机体中心上方 5 cm：mid360_z:=0.05
+        #
+        # 注意：
+        #   - 这里配置的是“传感器相对飞机机体”的安装外参。
+        #   - FAST-LIO 配置文件里的 extrinsic_T/extrinsic_R 是“LiDAR 和 IMU 之间”
+        #     的外参，含义不同，不应直接填到这里。
+        #   - 如果这组安装外参不准，地图/避障点云会相对机体发生整体偏移或旋转，
+        #     表现为障碍物位置不对、局部地图抖动、规划器绕障距离异常。
         nodes.append(Node(
             package='tf2_ros',
             executable='static_transform_publisher',
